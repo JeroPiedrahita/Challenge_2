@@ -1,81 +1,70 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-# --- CONFIGURACIÓN DE PÁGINA ---
+# 1. Configuración de página (Debe ser la primera instrucción de Streamlit)
 st.set_page_config(page_title="TechLogistics DSS", layout="wide")
 
-st.title("📦 TechLogistics S.A.S. - Sistema de Soporte a la Decisión")
+st.title("📦 TechLogistics: Dashboard de Consultoría")
 st.markdown("---")
 
-# --- BARRA LATERAL PARA CARGA DINÁMICA ---
-st.sidebar.header("📥 Ingesta de Activos")
-st.sidebar.write("Como Consultor Senior, cargue los tres datasets para iniciar.")
+# 2. Sidebar para cargar los archivos
+st.sidebar.header("📥 Carga de Datos")
+st.sidebar.write("Sube los 3 archivos CSV para activar el análisis.")
 
-# Los archivos se suben aquí (No están precargados)
-file_inv = st.sidebar.file_uploader("1. Inventario Central (CSV)", type=["csv"])
-file_log = st.sidebar.file_uploader("2. Transacciones Logística (CSV)", type=["csv"])
-file_feed = st.sidebar.file_uploader("3. Feedback Clientes (CSV)", type=["csv"])
+f_inv = st.sidebar.file_uploader("1. Inventario Central", type="csv")
+f_log = st.sidebar.file_uploader("2. Logística", type="csv")
+f_feed = st.sidebar.file_uploader("3. Feedback", type="csv")
 
-# --- FUNCIÓN DE AUDITORÍA (REQUERIMIENTO FASE 1) ---
-def auditoria_calidad(df):
-    if df is None: return 0, 0, 0
-    
-    total_celdas = df.size
-    nulos = df.isnull().sum().sum()
-    duplicados = df.duplicated().sum()
-    
-    # Cálculo del Health Score (Penalización por datos sucios)
-    # Se reporta % de nulidad y duplicados según la guía [cite: 20]
-    pct_nulos = (nulos / total_celdas) * 100
-    score = 100 - (pct_nulos + (duplicados / len(df) * 100))
-    
-    return round(max(0, score), 2), nulos, duplicados
+# 3. Función de Health Score
+def calcular_salud(df):
+    if df is not None:
+        nulos = df.isnull().sum().sum()
+        dups = df.duplicated().sum()
+        total = df.size
+        # Salud = 100% menos el impacto de errores
+        score = 100 - ((nulos + dups) / total * 100)
+        return round(score, 2), nulos, dups
+    return 0, 0, 0
 
-# --- CONTROL DE FLUJO ---
-if file_inv and file_log and file_feed:
-    # Lectura de los archivos subidos por el usuario
-    df_inv = pd.read_csv(file_inv)
-    df_log = pd.read_csv(file_log)
-    df_feed = pd.read_csv(file_feed)
-    
-    st.sidebar.success("✅ Datos recibidos correctamente")
+# 4. Lógica de visualización
+if f_inv and f_log and f_feed:
+    # Leer archivos
+    df_inv = pd.read_csv(f_inv)
+    df_log = pd.read_csv(f_log)
+    df_feed = pd.read_csv(f_feed)
 
-    # Creación de pestañas según el protocolo [cite: 119]
-    tab1, tab2, tab3 = st.tabs(["🔍 Auditoría de Calidad", "⚙️ Operaciones (Merge)", "🤖 IA Insights"])
+    st.success("✅ ¡Datos cargados exitosamente!")
 
-    with tab1:
-        st.header("Fase 1: Health Score Inicial (The Raw Reality)")
-        st.info("Métricas de calidad antes de la curaduría profunda[cite: 19].")
-        
+    # Pestañas
+    t1, t2 = st.tabs(["🔍 Auditoría de Calidad", "⚙️ Próximos Pasos"])
+
+    with t1:
+        st.header("Fase 1: Health Score Inicial")
         c1, c2, c3 = st.columns(3)
-        
-        # Auditoría de Inventario
-        with c1:
-            score, n, d = auditoria_calidad(df_inv)
-            st.metric("Salud Inventario", f"{score}/100")
-            st.write(f"**Nulos:** {n} | **Duplicados:** {d}")
-            st.dataframe(df_inv.head(5))
-            
-        # Auditoría de Logística
-        with c2:
-            score, n, d = auditoria_calidad(df_log)
-            st.metric("Salud Logística", f"{score}/100")
-            st.write(f"**Nulos:** {n} | **Duplicados:** {d}")
-            st.dataframe(df_log.head(5))
-            
-        # Auditoría de Feedback
-        with c3:
-            score, n, d = auditoria_calidad(df_feed)
-            st.metric("Salud Feedback", f"{score}/100")
-            st.write(f"**Nulos:** {n} | **Duplicados:** {d}")
-            st.dataframe(df_feed.head(5))
 
-    with tab2:
-        st.subheader("Fase 2: Integración de Datos")
-        st.warning("Listo para procesar. En el siguiente paso realizaremos el 'Left Join' para detectar SKUs Fantasma[cite: 28, 94].")
+        # Inventario
+        s1, n1, d1 = calcular_salud(df_inv)
+        with c1:
+            st.metric("Salud Inventario", f"{s1}%")
+            st.write(f"Nulos: {n1} | Dups: {d1}")
+            st.dataframe(df_inv.head(5))
+
+        # Logística
+        s2, n2, d2 = calcular_salud(df_log)
+        with c2:
+            st.metric("Salud Logística", f"{s2}%")
+            st.write(f"Nulos: {n2} | Dups: {d2}")
+            st.dataframe(df_log.head(5))
+
+        # Feedback
+        s3, n3, d3 = calcular_salud(df_feed)
+        with c3:
+            st.metric("Salud Feedback", f"{s3}%")
+            st.write(f"Nulos: {n3} | Dups: {d3}")
+            st.dataframe(df_feed.head(5))
+            
+    with t2:
+        st.info("La Fase 2 consistirá en unir estos datos y limpiar los costos atípicos.")
 
 else:
-    # Mensaje inicial si no hay archivos
-    st.info("👋 Por favor, suba los tres archivos CSV en el panel de la izquierda para comenzar el análisis.")
-    st.image("https://via.placeholder.com/800x200.png?text=Esperando+Activos+de+Información", use_column_width=True)
+    st.warning("🚦 Sistema a la espera de archivos. Por favor, súbelos en la barra lateral.")
