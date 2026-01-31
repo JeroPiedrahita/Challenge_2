@@ -1,66 +1,80 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
-# 1. Configuración básica
+# --- CONFIGURACIÓN DEL DASHBOARD (Senior Level) ---
 st.set_page_config(page_title="TechLogistics DSS", layout="wide")
 
-st.title("📦 TechLogistics: Diagnóstico de Carga")
+st.title("📦 TechLogistics S.A.S. - Decision Support System")
+st.markdown("---")
 
-# 2. Sidebar con instrucciones claras
-st.sidebar.header("📥 Panel de Carga")
-st.sidebar.markdown("Sube los archivos CSV del reto para activar el Dashboard.")
+# --- BARRA LATERAL: CARGA DE DATOS ---
+st.sidebar.header("📥 Ingesta de Datos")
+st.sidebar.markdown("Sube los archivos CSV para iniciar la auditoría.")
 
-f_inv = st.sidebar.file_uploader("1. Inventario", type=["csv"])
-f_log = st.sidebar.file_uploader("2. Logística", type=["csv"])
-f_feed = st.sidebar.file_uploader("3. Feedback", type=["csv"])
+# Cargadores de archivos según el ecosistema de datos [cite: 12, 13, 16]
+file_inv = st.sidebar.file_uploader("1. Inventario Central (CSV)", type=["csv"])
+file_log = st.sidebar.file_uploader("2. Transacciones Logística (CSV)", type=["csv"])
+file_feed = st.sidebar.file_uploader("3. Feedback Clientes (CSV)", type=["csv"])
 
-# 3. Lógica de verificación
-if not f_inv or not f_log or not f_feed:
-    st.warning("🕒 Esperando archivos...")
-    st.info("""
-    **Instrucciones para que funcione:**
-    1. Ve a la barra lateral izquierda.
-    2. Sube el archivo `inventario_central_v2.csv`[cite: 12].
-    3. Sube el archivo `transacciones_logistica_v2.csv`[cite: 13].
-    4. Sube el archivo `feedback_clientes_v2.csv`[cite: 16].
-    """)
-    
-    # Verificador de estado para el usuario
-    col_a, col_b, col_c = st.columns(3)
-    col_a.write(f"Inventario: {'✅' if f_inv else '❌'}")
-    col_b.write(f"Logística: {'✅' if f_log else '❌'}")
-    col_c.write(f"Feedback: {'✅' if f_feed else '❌'}")
+# --- FUNCIONES DE AUDITORÍA  ---
+def calcular_salud(df):
+    if df is None: return 0, 0, 0
+    nulos = df.isnull().sum().sum()
+    duplicados = df.duplicated().sum()
+    total_datos = df.size
+    # Health Score: Penaliza nulos y duplicados 
+    score = 100 - ((nulos + duplicados) / total_datos * 100)
+    return round(score, 2), nulos, duplicados
 
-else:
-    # Si los tres están cargados, procedemos
+# --- LÓGICA DE PROCESAMIENTO ---
+if file_inv and file_log and file_feed:
     try:
-        df_inv = pd.read_csv(f_inv)
-        df_log = pd.read_csv(f_log)
-        df_feed = pd.read_csv(f_feed)
-        
-        st.success("🎉 ¡Todos los archivos detectados! Iniciando Auditoría...")
-        
-        # Pestaña de Auditoría (Requerimiento Fase 1) [cite: 18, 19]
-        tab_audit, tab_limpieza = st.tabs(["🔍 Fase 1: Auditoría", "🧹 Fase 2: Limpieza"])
-        
+        # Carga de datasets [cite: 11]
+        df_inv = pd.read_csv(file_inv)
+        df_log = pd.read_csv(file_log)
+        df_feed = pd.read_csv(file_feed)
+
+        st.sidebar.success("✅ Activos de información cargados")
+
+        # Estructura de Navegación por Pestañas [cite: 119]
+        tab_audit, tab_ops, tab_ia = st.tabs([
+            "🔍 Fase 1: Auditoría", 
+            "⚙️ Fase 2: Operaciones", 
+            "🤖 Fase 3: Insights IA"
+        ])
+
         with tab_audit:
-            st.header("Salud de los Datos (The Raw Reality)") [cite: 10]
-            c1, c2, c3 = st.columns(3)
+            st.header("Auditoría de Calidad Inicial (Health Score)")
+            st.info("Visualización del estado de los datos antes de la curaduría.")
             
-            with c1:
-                st.subheader("Inventario")
-                st.write(f"Filas: {len(df_inv)}")
+            col1, col2, col3 = st.columns(3)
+            
+            # Análisis de Inventario [cite: 12]
+            with col1:
+                score, n, d = calcular_salud(df_inv)
+                st.metric("Salud Inventario", f"{score}%")
+                st.write(f"**Nulos:** {n} | **Duplicados:** {d}")
                 st.dataframe(df_inv.head(5))
-            
-            with c2:
-                st.subheader("Logística")
-                st.write(f"Filas: {len(df_log)}")
+
+            # Análisis de Logística [cite: 13, 15]
+            with col2:
+                score, n, d = calcular_salud(df_log)
+                st.metric("Salud Logística", f"{score}%")
+                st.write(f"**Nulos:** {n} | **Duplicados:** {d}")
                 st.dataframe(df_log.head(5))
-                
-            with c3:
-                st.subheader("Feedback")
-                st.write(f"Filas: {len(df_feed)}")
+
+            # Análisis de Feedback [cite: 16]
+            with col3:
+                score, n, d = calcular_salud(df_feed)
+                st.metric("Salud Feedback", f"{score}%")
+                st.write(f"**Nulos:** {n} | **Duplicados:** {d}")
                 st.dataframe(df_feed.head(5))
-                
+
+        with tab_ops:
+            st.warning("⚠️ Pendiente: Implementar Limpieza de Outliers e Integración (Merging)[cite: 27, 103].")
+
     except Exception as e:
-        st.error(f"Hubo un error al leer los archivos: {e}")
+        st.error(f"Error técnico al procesar archivos: {e} [cite: 55]")
+else:
+    st.info("👋 Bienvenida, Junta Directiva. Por favor, cargue los tres archivos en la barra lateral para proceder[cite: 9].")
