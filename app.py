@@ -1,60 +1,66 @@
 import streamlit as st
 import pandas as pd
-import io
 
-# Configuración profesional [cite: 114]
+# 1. Configuración básica
 st.set_page_config(page_title="TechLogistics DSS", layout="wide")
 
-st.title("📦 TechLogistics: Sistema de Soporte a la Decisión")
-st.markdown("---")
+st.title("📦 TechLogistics: Diagnóstico de Carga")
 
-# --- BARRA LATERAL PARA CARGA DE ARCHIVOS [cite: 117] ---
-st.sidebar.header("📁 Carga de Datos")
+# 2. Sidebar con instrucciones claras
+st.sidebar.header("📥 Panel de Carga")
+st.sidebar.markdown("Sube los archivos CSV del reto para activar el Dashboard.")
 
-file_inv = st.sidebar.file_uploader("Subir Inventario (CSV)", type=["csv"])
-file_log = st.sidebar.file_uploader("Subir Logística (CSV)", type=["csv"])
-file_feed = st.sidebar.file_uploader("Subir Feedback (CSV)", type=["csv"])
+f_inv = st.sidebar.file_uploader("1. Inventario", type=["csv"])
+f_log = st.sidebar.file_uploader("2. Logística", type=["csv"])
+f_feed = st.sidebar.file_uploader("3. Feedback", type=["csv"])
 
-# --- FUNCIÓN DE AUDITORÍA (HEALTH SCORE) [cite: 19, 20] ---
-def calcular_health_score(df):
-    if df is None: return 0
-    nulos = df.isnull().sum().sum()
-    duplicados = df.duplicated().sum()
-    total_celdas = df.size
-    # Penalizamos nulos y duplicados sobre el total de datos [cite: 20]
-    score = 100 - ((nulos + duplicados) / total_celdas * 100)
-    return round(score, 2), nulos, duplicados
+# 3. Lógica de verificación
+if not f_inv or not f_log or not f_feed:
+    st.warning("🕒 Esperando archivos...")
+    st.info("""
+    **Instrucciones para que funcione:**
+    1. Ve a la barra lateral izquierda.
+    2. Sube el archivo `inventario_central_v2.csv`[cite: 12].
+    3. Sube el archivo `transacciones_logistica_v2.csv`[cite: 13].
+    4. Sube el archivo `feedback_clientes_v2.csv`[cite: 16].
+    """)
+    
+    # Verificador de estado para el usuario
+    col_a, col_b, col_c = st.columns(3)
+    col_a.write(f"Inventario: {'✅' if f_inv else '❌'}")
+    col_b.write(f"Logística: {'✅' if f_log else '❌'}")
+    col_c.write(f"Feedback: {'✅' if f_feed else '❌'}")
 
-# --- LÓGICA PRINCIPAL ---
-if file_inv and file_log and file_feed:
-    # Leer archivos subidos
-    df_inv = pd.read_csv(file_inv)
-    df_log = pd.read_csv(file_log)
-    df_feed = pd.read_csv(file_feed)
-
-    st.sidebar.success("✅ Todos los archivos cargados")
-
-    # Organización por TABS como pide el reto [cite: 119]
-    tab_audit, tab_ops, tab_ia = st.tabs(["🔍 Auditoría Inicial", "⚙️ Procesamiento", "🤖 Recomendaciones IA"])
-
-    with tab_audit:
-        st.header("Análisis de Calidad (The Raw Reality) [cite: 10]")
-        col1, col2, col3 = st.columns(3)
-        
-        datos = [
-            ("Inventario", df_inv, col1),
-            ("Logística", df_log, col2),
-            ("Feedback", df_feed, col3)
-        ]
-
-        for nombre, df, col in datos:
-            score, nulos, dups = calcular_health_score(df)
-            with col:
-                st.subheader(nombre)
-                st.metric("Health Score", f"{score}%")
-                st.write(f"**Nulos detectados:** {nulos} [cite: 20]")
-                st.write(f"**Duplicados:** {dups} [cite: 20]")
-                st.dataframe(df.head(10)) # Vista previa del "caos" [cite: 4]
 else:
-    st.info("👋 Bienvenido, Consultor. Por favor, sube los **3 archivos CSV** en la barra lateral para comenzar el análisis.")
-    st.warning("⚠️ El sistema requiere los tres archivos para realizar la integridad referencial (Merging) más adelante.")
+    # Si los tres están cargados, procedemos
+    try:
+        df_inv = pd.read_csv(f_inv)
+        df_log = pd.read_csv(f_log)
+        df_feed = pd.read_csv(f_feed)
+        
+        st.success("🎉 ¡Todos los archivos detectados! Iniciando Auditoría...")
+        
+        # Pestaña de Auditoría (Requerimiento Fase 1) [cite: 18, 19]
+        tab_audit, tab_limpieza = st.tabs(["🔍 Fase 1: Auditoría", "🧹 Fase 2: Limpieza"])
+        
+        with tab_audit:
+            st.header("Salud de los Datos (The Raw Reality)") [cite: 10]
+            c1, c2, c3 = st.columns(3)
+            
+            with c1:
+                st.subheader("Inventario")
+                st.write(f"Filas: {len(df_inv)}")
+                st.dataframe(df_inv.head(5))
+            
+            with c2:
+                st.subheader("Logística")
+                st.write(f"Filas: {len(df_log)}")
+                st.dataframe(df_log.head(5))
+                
+            with c3:
+                st.subheader("Feedback")
+                st.write(f"Filas: {len(df_feed)}")
+                st.dataframe(df_feed.head(5))
+                
+    except Exception as e:
+        st.error(f"Hubo un error al leer los archivos: {e}")
