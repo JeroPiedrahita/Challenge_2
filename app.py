@@ -1,72 +1,60 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import io
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="TechLogistics DSS - Senior Consultant", layout="wide")
+# Configuración profesional [cite: 114]
+st.set_page_config(page_title="TechLogistics DSS", layout="wide")
 
-st.title("📦 TechLogistics S.A.S. - Decision Support System")
+st.title("📦 TechLogistics: Sistema de Soporte a la Decisión")
 st.markdown("---")
 
-# --- FUNCIONES DE CARGA Y AUDITORÍA ---
-@st.cache_data
-def load_data():
-    try:
-        df_inv = pd.read_csv("inventario_central_v2.csv")
-        df_log = pd.read_csv("transacciones_logistica_v2.csv")
-        df_feed = pd.read_csv("feedback_clientes_v2.csv")
-        return df_inv, df_log, df_feed
-    except FileNotFoundError as e:
-        st.error(f"Error: No se encontró un archivo. {e}")
-        return None, None, None
+# --- BARRA LATERAL PARA CARGA DE ARCHIVOS [cite: 117] ---
+st.sidebar.header("📁 Carga de Datos")
 
+file_inv = st.sidebar.file_uploader("Subir Inventario (CSV)", type=["csv"])
+file_log = st.sidebar.file_uploader("Subir Logística (CSV)", type=["csv"])
+file_feed = st.sidebar.file_uploader("Subir Feedback (CSV)", type=["csv"])
+
+# --- FUNCIÓN DE AUDITORÍA (HEALTH SCORE) [cite: 19, 20] ---
 def calcular_health_score(df):
-    if df is None: return 0, {}
-    
-    total_celdas = df.size
+    if df is None: return 0
     nulos = df.isnull().sum().sum()
     duplicados = df.duplicated().sum()
-    
-    # El Health Score baja por nulos y duplicados
-    pct_nulos = (nulos / total_celdas) * 100
-    pct_duplicados = (duplicados / len(df)) * 100
-    
-    score = max(0, 100 - (pct_nulos + (pct_duplicados * 2))) # Duplicados penalizan más
-    
-    return round(score, 1), {
-        "Nulidad (%)": round(pct_nulos, 2),
-        "Duplicados": duplicados,
-        "Total Filas": len(df)
-    }
+    total_celdas = df.size
+    # Penalizamos nulos y duplicados sobre el total de datos [cite: 20]
+    score = 100 - ((nulos + duplicados) / total_celdas * 100)
+    return round(score, 2), nulos, duplicados
 
-# --- EJECUCIÓN PRINCIPAL ---
-inv_raw, log_raw, feed_raw = load_data()
+# --- LÓGICA PRINCIPAL ---
+if file_inv and file_log and file_feed:
+    # Leer archivos subidos
+    df_inv = pd.read_csv(file_inv)
+    df_log = pd.read_csv(file_log)
+    df_feed = pd.read_csv(file_feed)
 
-if inv_raw is not None:
-    # Sidebar para navegación
-    menu = st.sidebar.radio("Navegación", ["1. Auditoría de Calidad", "2. Limpieza e Integración", "3. Análisis Estratégico"])
+    st.sidebar.success("✅ Todos los archivos cargados")
 
-    if menu == "1. Auditoría de Calidad":
-        st.header("🔍 Auditoría de Calidad Inicial (Raw Reality)")
-        st.info("Estado de los datos antes de la intervención de consultoría.")
+    # Organización por TABS como pide el reto [cite: 119]
+    tab_audit, tab_ops, tab_ia = st.tabs(["🔍 Auditoría Inicial", "⚙️ Procesamiento", "🤖 Recomendaciones IA"])
 
+    with tab_audit:
+        st.header("Análisis de Calidad (The Raw Reality) [cite: 10]")
         col1, col2, col3 = st.columns(3)
         
-        datasets = [
-            ("Inventario", inv_raw, col1),
-            ("Logística", log_raw, col2),
-            ("Feedback", feed_raw, col3)
+        datos = [
+            ("Inventario", df_inv, col1),
+            ("Logística", df_log, col2),
+            ("Feedback", df_feed, col3)
         ]
 
-        for nombre, df, columna in datasets:
-            score, mets = calcular_health_score(df)
-            with columna:
+        for nombre, df, col in datos:
+            score, nulos, dups = calcular_health_score(df)
+            with col:
                 st.subheader(nombre)
-                st.metric("Health Score", f"{score}/100")
-                st.write(f"**Registros:** {mets['Total Filas']}")
-                st.write(f"**Nulidad:** {mets['Nulidad (%)']}%")
-                st.write(f"**Duplicados:** {mets['Duplicados']}")
-                st.dataframe(df.head(5))
-
+                st.metric("Health Score", f"{score}%")
+                st.write(f"**Nulos detectados:** {nulos} [cite: 20]")
+                st.write(f"**Duplicados:** {dups} [cite: 20]")
+                st.dataframe(df.head(10)) # Vista previa del "caos" [cite: 4]
 else:
-    st.warning("Por favor, asegúrate de que los archivos CSV estén en la misma carpeta que app.py")
+    st.info("👋 Bienvenido, Consultor. Por favor, sube los **3 archivos CSV** en la barra lateral para comenzar el análisis.")
+    st.warning("⚠️ El sistema requiere los tres archivos para realizar la integridad referencial (Merging) más adelante.")
