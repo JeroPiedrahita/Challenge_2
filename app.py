@@ -18,9 +18,9 @@ st.set_page_config(
 def load_data(path):
     return pd.read_csv(path)
 
-df_inv = load_data("data/inventario_limpio.csv")
-df_tx  = load_data("data/transacciones_limpio.csv")
-df_fb  = load_data("data/feedback_limpio.csv")
+df_inv = load_data("inventario_limpio.csv")
+df_tx  = load_data("transacciones_limpio.csv")
+df_fb  = load_data("feedback_limpio.csv")
 
 # --------------------------------------------------
 # Sidebar – Navegación
