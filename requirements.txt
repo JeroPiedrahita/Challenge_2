@@ -1,6 +1,4 @@
-pandas
 streamlit
-plotly
+pandas
 numpy
-groq
-requests
+matplotlib
