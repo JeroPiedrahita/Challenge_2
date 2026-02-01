@@ -12,15 +12,15 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# Carga de datos (cacheada)
+# Carga de datos
 # --------------------------------------------------
 @st.cache_data
 def load_data(path):
     return pd.read_csv(path)
 
-df_inv = load_data("inventario_limpio.csv")
-df_tx  = load_data("transacciones_limpio.csv")
-df_fb  = load_data("feedback_limpio.csv")
+df_inv = load_data("data/inventario_limpio.csv")
+df_tx  = load_data("data/transacciones_limpio.csv")
+df_fb  = load_data("data/feedback_limpio.csv")
 
 # --------------------------------------------------
 # Sidebar – Navegación
@@ -31,7 +31,7 @@ seccion = st.sidebar.radio(
     "Selecciona el módulo:",
     [
         "Inventario",
-        "Transacciones & Logística",
+        "Transacciones",
         "Feedback Clientes"
     ]
 )
@@ -42,9 +42,7 @@ seccion = st.sidebar.radio(
 if seccion == "Inventario":
 
     st.title("📦 EDA – Inventario")
-    st.markdown(
-        "Análisis exploratorio del estado del inventario y riesgos operativos."
-    )
+    st.markdown("Estado del inventario y calidad del dato operativo.")
 
     # KPIs
     col1, col2, col3 = st.columns(3)
@@ -60,12 +58,12 @@ if seccion == "Inventario":
     )
 
     col3.metric(
-        "Riesgo de Quiebre",
-        int(df_inv["riesgo_quiebre"].sum())
+        "Costo Mediano (USD)",
+        f"${df_inv['Costo_Unitario_Limpio'].median():,.2f}"
     )
 
     # Distribución de costos
-    st.subheader("Distribución del Costo Unitario")
+    st.subheader("Distribución del Costo Unitario Limpio")
 
     fig, ax = plt.subplots()
     df_inv["Costo_Unitario_Limpio"].dropna().plot(
@@ -73,32 +71,43 @@ if seccion == "Inventario":
         bins=30,
         ax=ax
     )
-    ax.set_xlabel("Costo Unitario (USD)")
+    ax.set_xlabel("Costo Unitario USD")
+    ax.set_ylabel("Frecuencia")
+    st.pyplot(fig)
+
+    # Lead time
+    st.subheader("Distribución del Lead Time (días)")
+
+    fig, ax = plt.subplots()
+    df_inv["Lead_Time_Limpio"].dropna().plot(
+        kind="hist",
+        bins=25,
+        ax=ax
+    )
+    ax.set_xlabel("Días")
     ax.set_ylabel("Frecuencia")
     st.pyplot(fig)
 
     # Stock vs Punto de Reorden
-    st.subheader("Stock vs Punto de Reorden")
+    st.subheader("Stock Actual vs Punto de Reorden")
 
     fig, ax = plt.subplots()
     ax.scatter(
-        df_inv["Punto_Reorden_Limpio"],
-        df_inv["Stock_Analitico"],
+        df_inv["Punto_Reorden"],
+        df_inv["Stock_Actual"],
         alpha=0.6
     )
     ax.set_xlabel("Punto de Reorden")
-    ax.set_ylabel("Stock Analítico")
+    ax.set_ylabel("Stock Actual")
     st.pyplot(fig)
 
 # ==================================================
-# 🚚 EDA TRANSACCIONES & LOGÍSTICA
+# 🚚 EDA TRANSACCIONES
 # ==================================================
-if seccion == "Transacciones & Logística":
+if seccion == "Transacciones":
 
-    st.title("🚚 EDA – Transacciones y Logística")
-    st.markdown(
-        "Evaluación de ingresos, tiempos de entrega e integridad referencial."
-    )
+    st.title("🚚 EDA – Transacciones")
+    st.markdown("Comportamiento de ventas y desempeño logístico.")
 
     # Filtro por ciudad
     ciudad = st.sidebar.selectbox(
@@ -121,13 +130,13 @@ if seccion == "Transacciones & Logística":
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "Ingresos Totales",
-        f"${df_tx_f['Ingreso_Total'].sum():,.0f}"
+        "Transacciones",
+        df_tx_f["Transaccion_ID"].nunique()
     )
 
     col2.metric(
-        "Ventas sin Catálogo",
-        int(df_tx_f["producto_sin_catalogo"].sum())
+        "Unidades Vendidas",
+        int(df_tx_f["Cantidad_Vendida"].sum())
     )
 
     col3.metric(
@@ -135,7 +144,7 @@ if seccion == "Transacciones & Logística":
         int(df_tx_f["Tiempo_Entrega_Limpio"].median())
     )
 
-    # Distribución tiempos de entrega
+    # Distribución tiempo entrega
     st.subheader("Distribución del Tiempo de Entrega")
 
     fig, ax = plt.subplots()
@@ -160,35 +169,45 @@ if seccion == "Transacciones & Logística":
     ax.set_ylabel("Cantidad")
     st.pyplot(fig)
 
+    # Canal de venta
+    st.subheader("Canal de Venta")
+
+    fig, ax = plt.subplots()
+    df_tx_f["Canal_Venta"].value_counts().plot(
+        kind="bar",
+        ax=ax
+    )
+    ax.set_xlabel("Canal")
+    ax.set_ylabel("Cantidad")
+    st.pyplot(fig)
+
 # ==================================================
 # 🗣️ EDA FEEDBACK CLIENTES
 # ==================================================
 if seccion == "Feedback Clientes":
 
     st.title("🗣️ EDA – Feedback de Clientes")
-    st.markdown(
-        "Análisis de satisfacción, fricción y calidad percibida."
-    )
+    st.markdown("Satisfacción del cliente y fricción post-venta.")
 
-    # KPIs NPS
+    # KPIs
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "Promotores",
-        int((df_fb["NPS_Grupo"] == "Promotor").sum())
+        "Rating Producto (Mediana)",
+        float(df_fb["Rating_Producto"].median())
     )
 
     col2.metric(
-        "Pasivos",
-        int((df_fb["NPS_Grupo"] == "Pasivo").sum())
+        "Rating Logística (Mediana)",
+        float(df_fb["Rating_Logistica"].median())
     )
 
     col3.metric(
-        "Detractores",
-        int((df_fb["NPS_Grupo"] == "Detractor").sum())
+        "Edad Mediana Cliente",
+        int(df_fb["Edad_Cliente"].median())
     )
 
-    # Rating producto
+    # Distribución Rating Producto
     st.subheader("Distribución del Rating de Producto")
 
     fig, ax = plt.subplots()
@@ -201,15 +220,27 @@ if seccion == "Feedback Clientes":
     ax.set_ylabel("Frecuencia")
     st.pyplot(fig)
 
-    # Fricción del cliente
-    st.subheader("Fricción del Cliente")
+    # NPS
+    st.subheader("Distribución NPS")
 
     fig, ax = plt.subplots()
-    df_fb["friccion_cliente"].value_counts().plot(
+    df_fb["NPS_Grupo"].value_counts().plot(
         kind="bar",
         ax=ax
     )
-    ax.set_xlabel("Fricción")
+    ax.set_xlabel("Grupo NPS")
+    ax.set_ylabel("Cantidad")
+    st.pyplot(fig)
+
+    # Tickets de soporte
+    st.subheader("Tickets de Soporte")
+
+    fig, ax = plt.subplots()
+    df_fb["Ticket_Soporte_Abierto"].value_counts().plot(
+        kind="bar",
+        ax=ax
+    )
+    ax.set_xlabel("Ticket Abierto")
     ax.set_ylabel("Cantidad")
     st.pyplot(fig)
 
@@ -218,5 +249,5 @@ if seccion == "Feedback Clientes":
 # --------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.caption(
-    "EDA construido como fase previa al dashboard ejecutivo."
+    "EDA basado en datasets limpios – fase previa a dashboard ejecutivo."
 )
