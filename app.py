@@ -292,31 +292,61 @@ st.plotly_chart(fig, use_container_width=True, key="grafico_cajas_rentabilidad")
 # --------------------------------------------------
 st.subheader("💰 Rentabilidad por Bodega")
 
-margen_bodega = (
-    df_f.groupby("Bodega_Origen")["Margen_Utilidad"]
+margen_bodega_df = (
+    df_f
+    .groupby("Bodega_Origen", as_index=False)["Margen_Utilidad"]
     .mean()
-    .sort_values()
+    .sort_values("Margen_Utilidad")
 )
 
-fig, ax = plt.subplots()
-margen_bodega.plot(kind="barh", ax=ax)
-ax.set_xlabel("Margen promedio (USD)")
-st.pyplot(fig)
+fig = px.bar(
+    margen_bodega_df,
+    y="Bodega_Origen",
+    x="Margen_Utilidad",
+    color="Bodega_Origen",
+    orientation="h",
+    title="Margen Promedio por Bodega (USD)"
+)
 
+fig.update_layout(
+    template="plotly_white",
+    showlegend=False,
+    xaxis_title="Margen promedio (USD)",
+    yaxis_title="Bodega de Origen"
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    key="grafico_rentabilidad_bodega"
+)
 # --------------------------------------------------
 # Logística vs Satisfacción
 # --------------------------------------------------
 st.subheader("🚚 Logística y Satisfacción")
 
-fig, ax = plt.subplots()
-ax.scatter(
-    df_f["Tiempo_Entrega_Limpio"],
-    df_f["Satisfaccion_NPS"],
-    alpha=0.3
+fig = px.scatter(
+    df_f,
+    x="Tiempo_Entrega_Limpio",
+    y="Satisfaccion_NPS",
+    color="Bodega_Origen",
+    opacity=0.4,
+    title="Relación entre Tiempo de Entrega y Satisfacción (NPS)",
+    labels={
+        "Tiempo_Entrega_Limpio": "Tiempo de Entrega (días)",
+        "Satisfaccion_NPS": "NPS"
+    }
 )
-ax.set_xlabel("Tiempo de Entrega (días)")
-ax.set_ylabel("NPS")
-st.pyplot(fig)
+
+fig.update_layout(
+    template="plotly_white"
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    key="grafico_logistica_satisfaccion"
+))
 
 # --------------------------------------------------
 # Riesgo Operativo
@@ -344,6 +374,5 @@ st.plotly_chart(
     use_container_width=True,
     key="grafico_riesgo_bodega"
 )
-
 
 
