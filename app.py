@@ -12,7 +12,7 @@ from data_processing import (
     resumen_limpieza
 )
 
-
+st.write("¿Tengo GROQ_API_KEY?", "GROQ_API_KEY" in st.secrets)
 # --------------------------------------------------
 # Configuración general
 # --------------------------------------------------
