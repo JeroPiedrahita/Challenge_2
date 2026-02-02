@@ -85,70 +85,78 @@ def clean_inventario(df):
     
     return df_clean, log
 
-def clean_transacciones(df):
-    """Limpia el dataset de transacciones"""
-    df_clean = df.copy()
-    log = []
+def clean_feedback(df_raw):
+    df_clean = df_raw.copy()
+    log = {}
 
-    # 1. Limpiar fechas
-    df_clean['Fecha_Venta'] = pd.to_datetime(df_clean['Fecha_Venta'], errors='coerce')
-    nulls = df_clean['Fecha_Venta'].isnull().sum()
-    if nulls > 0:
-        df_clean = df_clean[df_clean['Fecha_Venta'].notna()]
-        log.append(f"Eliminadas {nulls} transacciones sin fecha")
+    # ---------------- IDs ----------------
+    df_clean['Feedback_ID'] = df_clean['Feedback_ID'].astype(str).str.strip()
+    df_clean['Transaccion_ID'] = df_clean['Transaccion_ID'].astype(str).str.strip()
 
-    # Eliminar fechas futuras
-    today = pd.Timestamp.now()
-    future = (df_clean['Fecha_Venta'] > today).sum()
-    if future > 0:
-        df_clean = df_clean[df_clean['Fecha_Venta'] <= today]
-        log.append(f"Eliminadas {future} transacciones con fecha futura")
+    # ---------------- Edad ----------------
+    df_clean['Edad_Cliente'] = pd.to_numeric(df_clean['Edad_Cliente'], errors='coerce')
+    df_clean.loc[
+        (df_clean['Edad_Cliente'] < 0) | (df_clean['Edad_Cliente'] > 100),
+        'Edad_Cliente'
+    ] = np.nan
 
-    # 2. Normalizar ciudades
-    city_map = {
-        'MED': 'Medellín', 'med': 'Medellín', 'Medellin': 'Medellín',
-        'BOG': 'Bogotá', 'bog': 'Bogotá', 'Bogota': 'Bogotá'
+    # ---------------- Ratings ----------------
+    for col in ['Rating_Producto', 'Rating_Logistica']:
+        df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
+        df_clean.loc[
+            (df_clean[col] < 1) | (df_clean[col] > 5),
+            col
+        ] = np.nan
+        df_clean[col] = df_clean[col].fillna(df_clean[col].median())
+
+    # ---------------- Ticket soporte ----------------
+    map_sn = {
+        'si': 'Sí', 'sí': 'Sí', 'yes': 'Sí', '1': 'Sí',
+        'no': 'No', '0': 'No'
     }
-    df_clean['Ciudad_Destino'] = df_clean['Ciudad_Destino'].replace(city_map)
-    log.append("Normalizados nombres de ciudades")
 
-    # 3. Limpiar tiempo de entrega (columna real)
-    col_tiempo = 'Tiempo_Entrega_Real'
+    df_clean['Ticket_Soporte_Abierto'] = (
+        df_clean['Ticket_Soporte_Abierto']
+        .astype(str)
+        .str.lower()
+        .str.strip()
+        .map(map_sn)
+    )
 
-    df_clean[col_tiempo] = pd.to_numeric(df_clean[col_tiempo], errors='coerce')
+    # ---------------- Recomendación ----------------
+    df_clean['Recomienda_Marca'] = (
+        df_clean['Recomienda_Marca']
+        .astype(str)
+        .str.lower()
+        .str.strip()
+        .map(map_sn)
+    )
 
-    outliers = (df_clean[col_tiempo] > 90).sum()
-    if outliers > 0:
-        mediana = df_clean[col_tiempo].median()
-        df_clean.loc[df_clean[col_tiempo] > 90, col_tiempo] = mediana
-        log.append(
-            f"Corregidos {outliers} tiempos de entrega > 90 días "
-            f"(mediana = {round(mediana, 2)})"
-        )
+    # ---------------- NPS ----------------
+    df_clean['Satisfaccion_NPS'] = pd.to_numeric(
+        df_clean['Satisfaccion_NPS'],
+        errors='coerce'
+    )
 
-    # 4. Eliminar cantidades y precios inválidos
-    invalid = (
-        (df_clean['Cantidad_Vendida'] <= 0) |
-        (df_clean['Precio_Venta_Final'] <= 0)
-    ).sum()
+    def nps_group(x):
+        if pd.isna(x):
+            return np.nan
+        if x >= 9:
+            return 'Promotor'
+        if x >= 7:
+            return 'Pasivo'
+        return 'Detractor'
 
-    if invalid > 0:
-        df_clean = df_clean[
-            (df_clean['Cantidad_Vendida'] > 0) &
-            (df_clean['Precio_Venta_Final'] > 0)
-        ]
-        log.append(
-            f"Eliminadas {invalid} transacciones con cantidades o precios inválidos"
-        )
+    df_clean['NPS_Grupo'] = df_clean['Satisfaccion_NPS'].apply(nps_group)
 
-    # 5. Eliminar duplicados
-    dups = df_clean.duplicated(subset=['Transaccion_ID']).sum()
-    if dups > 0:
-        df_clean = df_clean.drop_duplicates(subset=['Transaccion_ID'])
-        log.append(f"Eliminados {dups} IDs de transacción duplicados")
+    # ---------------- Comentarios ----------------
+    df_clean['Comentario_Texto'] = df_clean['Comentario_Texto'].replace('---', np.nan)
+
+    # ---------------- Auditoría ----------------
+    log['nulos_pct'] = df_clean.isna().mean() * 100
+    log['duplicados'] = df_clean.duplicated().sum()
 
     return df_clean, log
-
 
 def clean_feedback(df):
     """Limpia el dataset de feedback"""
