@@ -134,37 +134,91 @@ df_master["Costo_Total"] = df_master["Cantidad_Vendida"] * df_master["Costo_Unit
 df_master["Margen_Utilidad"] = df_master["Ingreso"] - df_master["Costo_Total"]
 df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Lead_Time_Limpio"]
 
-# --------------------------------------------------
-# Storytelling visual
-# --------------------------------------------------
-st.subheader("Rentabilidad Operativa")
+st.sidebar.header("🎛️ Filtros")
 
-# 🔹 Mejora visual del margen (sin alterar datos)
-margen = df_master["Margen_Utilidad"].dropna()
-p5, p95 = margen.quantile([0.05, 0.95])
-margen_vis = margen.clip(p5, p95)
+# Filtros básicos
+bodegas = st.sidebar.multiselect(
+    "Bodega de Origen",
+    options=sorted(df_master["Bodega_Origen"].dropna().unique()),
+    default=sorted(df_master["Bodega_Origen"].dropna().unique())
+)
+
+ciudades = st.sidebar.multiselect(
+    "Ciudad Destino",
+    options=sorted(df_master["Ciudad_Destino_Limpia"].dropna().unique()),
+    default=sorted(df_master["Ciudad_Destino_Limpia"].dropna().unique())
+)
+
+canales = st.sidebar.multiselect(
+    "Canal de Venta",
+    options=sorted(df_master["Canal_Venta"].dropna().unique()),
+    default=sorted(df_master["Canal_Venta"].dropna().unique())
+)
+
+# Aplicar filtros
+df_f = df_master[
+    (df_master["Bodega_Origen"].isin(bodegas)) &
+    (df_master["Ciudad_Destino_Limpia"].isin(ciudades)) &
+    (df_master["Canal_Venta"].isin(canales))
+]
+
+# --------------------------------------------------
+# KPIs Ejecutivos
+# --------------------------------------------------
+st.subheader("📊 KPIs Operacionales")
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Ingresos Totales (USD)", f"${df_f['Ingreso'].sum():,.0f}")
+col2.metric("Margen Total (USD)", f"${df_f['Margen_Utilidad'].sum():,.0f}")
+
+margen_pct = (df_f["Margen_Utilidad"].sum() / df_f["Ingreso"].sum()) * 100
+col3.metric("Margen Total (%)", f"{margen_pct:.1f}%")
+
+col4.metric(
+    "Ventas con SKU Fantasma (%)",
+    f"{df_f['sku_fantasma'].mean() * 100:.1f}%"
+)
+
+# --------------------------------------------------
+# Rentabilidad
+# --------------------------------------------------
+st.subheader("💰 Rentabilidad por Bodega")
+
+margen_bodega = (
+    df_f.groupby("Bodega_Origen")["Margen_Utilidad"]
+    .mean()
+    .sort_values()
+)
 
 fig, ax = plt.subplots()
-ax.hist(margen_vis, bins=40)
-ax.axvline(0, linestyle="--")
-ax.set_xlabel("Margen de Utilidad (USD)")
-ax.set_ylabel("Frecuencia")
-ax.set_title("Distribución del Margen de Utilidad (recorte visual 5%–95%)")
+margen_bodega.plot(kind="barh", ax=ax)
+ax.set_xlabel("Margen promedio (USD)")
 st.pyplot(fig)
 
-st.subheader("Impacto Logístico en Satisfacción")
+# --------------------------------------------------
+# Logística vs Satisfacción
+# --------------------------------------------------
+st.subheader("🚚 Logística y Satisfacción")
 
 fig, ax = plt.subplots()
-ax.scatter(df_master["Tiempo_Entrega_Limpio"], df_master["Satisfaccion_NPS"], alpha=0.3)
+ax.scatter(
+    df_f["Tiempo_Entrega_Limpio"],
+    df_f["Satisfaccion_NPS"],
+    alpha=0.3
+)
 ax.set_xlabel("Tiempo de Entrega (días)")
 ax.set_ylabel("NPS")
 st.pyplot(fig)
 
-st.subheader("Riesgo Operativo por Bodega")
+# --------------------------------------------------
+# Riesgo Operativo
+# --------------------------------------------------
+st.subheader("⚠️ Riesgo Operativo por Bodega")
 
 riesgo = (
-    df_master
-    .assign(ticket_bin=df_master["Ticket_Soporte_Abierto"] == "Sí")
+    df_f
+    .assign(ticket_bin=df_f["Ticket_Soporte_Abierto"] == "Sí")
     .groupby("Bodega_Origen")["ticket_bin"]
     .mean()
     .sort_values(ascending=False)
@@ -174,3 +228,6 @@ fig, ax = plt.subplots()
 riesgo.plot(kind="bar", ax=ax)
 ax.set_ylabel("Tasa de Tickets")
 st.pyplot(fig)
+
+
+
