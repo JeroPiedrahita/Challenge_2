@@ -103,6 +103,19 @@ if st.sidebar.button("🧹 Ejecutar Limpieza"):
     st.session_state["df_tx"]  = df_tx
     st.session_state["df_fb"]  = df_fb
 
+st.sidebar.divider()
+st.sidebar.subheader("🔑 Integración IA (Groq)")
+
+api_key = st.sidebar.text_input(
+    "Ingresa tu API Key de Groq",
+    type="password",
+    help="La key no se guarda. Se usa solo durante esta sesión."
+)
+
+if api_key:
+    st.session_state["groq_api_key"] = api_key
+
+
 # --------------------------------------------------
 # Validación
 # --------------------------------------------------
