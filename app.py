@@ -1,4 +1,4 @@
-
+from ai_analysis import generar_insights_ia
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -479,22 +479,26 @@ with tab3:
 
 
 with tab4:
-    st.subheader("🤖 Insights Generados por IA")
+        st.subheader("🤖 Insights Inteligentes (IA)")
 
-    if st.button("🧠 Analizar con IA"):
-        resumen = {
-            "filas": len(df_f),
-            "ingresos": df_f["Ingreso"].sum(),
-            "margen": df_f["Margen_Utilidad"].sum(),
-            "riesgo_promedio": (df_f["Ticket_Soporte_Abierto"] == "Sí").mean()
-        }
+    st.markdown("""
+    Este análisis se genera **exclusivamente** con los datos filtrados por el usuario.
+    """)
 
-        prompt = f"""
-        Analiza el siguiente resumen operativo y genera 3 insights claros
-        y accionables para un gerente logístico:
+    pregunta = st.text_area(
+        "Pregunta de negocio para la IA",
+        value="¿Qué patrones clave afectan la rentabilidad y la satisfacción del cliente?"
+    )
 
-        {resumen}
-        """
+    if st.button("🧠 Generar análisis con IA"):
+        with st.spinner("Analizando datos con Llama-3..."):
+            resultado = generar_insights_ia(
+                df_f,  # 👈 ESTE ES EL DATAFRAME FILTRADO
+                pregunta
+            )
+
+        st.markdown("### 📊 Resultados del análisis")
+        st.write(resultado)
 
         # aquí llamas a Groq / Llama-3
         st.info("🔍 Analizando datos filtrados…")
