@@ -33,16 +33,33 @@ def clean_headers(df):
 
 @st.cache_data
 def master_cleaning_process(inv_f, tx_f, fb_f):
-    # A. Carga Blindada
+    # A. Carga Blindada con detección de separador y codificación
     inv = clean_headers(pd.read_csv(inv_f, sep=None, engine='python', encoding='utf-8-sig'))
     tx = clean_headers(pd.read_csv(tx_f, sep=None, engine='python', encoding='utf-8-sig'))
     fb = clean_headers(pd.read_csv(fb_f, sep=None, engine='python', encoding='utf-8-sig'))
 
-    # B. Limpieza de Feedback (Reglas Vivas)
-    fb["Feedback_ID"] = fb["Feedback_ID"].astype(str)
+    # B. NORMALIZACIÓN FORZOSA DE IDs (Solución al KeyError)
+    # Inventario: La primera columna DEBE ser SKU_ID
+    if 'SKU_ID' not in inv.columns:
+        inv.rename(columns={inv.columns[0]: 'SKU_ID'}, inplace=True)
+    
+    # Transacciones: 1ra columna SKU_ID, 2da columna Transaccion_ID
+    if 'SKU_ID' not in tx.columns:
+        tx.rename(columns={tx.columns[0]: 'SKU_ID'}, inplace=True)
+    if 'Transaccion_ID' not in tx.columns:
+        tx.rename(columns={tx.columns[1]: 'Transaccion_ID'}, inplace=True)
+
+    # Feedback: La primera columna DEBE ser Feedback_ID, la segunda Transaccion_ID
+    if 'Feedback_ID' not in fb.columns:
+        fb.rename(columns={fb.columns[0]: 'Feedback_ID'}, inplace=True)
+    if 'Transaccion_ID' not in fb.columns:
+        fb.rename(columns={fb.columns[1]: 'Transaccion_ID'}, inplace=True)
+
+    # C. Limpieza de Feedback (Ahora Feedback_ID ya existe garantizado)
+    fb["Feedback_ID"] = fb["Feedback_ID"].astype(str).str.strip()
     fb = fb.drop_duplicates(subset=["Feedback_ID"])
     
-    # Edad IQR
+    # Edad IQR (Datos numéricos)
     fb["Edad_Cliente"] = pd.to_numeric(fb["Edad_Cliente"], errors='coerce')
     q1, q3 = fb["Edad_Cliente"].quantile([0.25, 0.75])
     iqr = q3 - q1
@@ -50,28 +67,43 @@ def master_cleaning_process(inv_f, tx_f, fb_f):
     
     # Ratings estrictos 1-5
     for r in ["Rating_Producto", "Rating_Logistica"]:
-        fb[r] = pd.to_numeric(fb[r], errors='coerce')
-        fb.loc[(fb[r] < 1) | (fb[r] > 5), r] = np.nan
+        if r in fb.columns:
+            fb[r] = pd.to_numeric(fb[r], errors='coerce')
+            fb.loc[(fb[r] < 1) | (fb[r] > 5), r] = np.nan
 
-    # C. Limpieza de Inventario (Costos IQR por Categoría)
+    # D. Limpieza de Inventario (Costos)
     inv["Costo_Unitario_USD"] = pd.to_numeric(inv["Costo_Unitario_USD"], errors='coerce')
-    inv["Costo_Limpio"] = inv.groupby("Categoria")["Costo_Unitario_USD"].transform(
-        lambda x: x.mask((x < x.quantile(0.05)) | (x > x.quantile(0.95)), x.median())
-    )
+    # Imputación por mediana de categoría para evitar sesgos de outliers
+    if 'Categoria' in inv.columns:
+        inv["Costo_Limpio"] = inv.groupby("Categoria")["Costo_Unitario_USD"].transform(
+            lambda x: x.mask((x < x.quantile(0.05)) | (x > x.quantile(0.95)), x.median())
+        )
+    else:
+        inv["Costo_Limpio"] = inv["Costo_Unitario_USD"]
 
-    # D. Integración Master
-    df = tx.merge(inv, on="SKU_ID", how="left").merge(fb, on="Transaccion_ID", how="left")
+    # E. Integración Master (Data Blending)
+    # Unimos Ventas con Inventario por SKU
+    df = tx.merge(inv, on="SKU_ID", how="left")
+    # Unimos el resultado con Feedback por ID de Transacción
+    df = df.merge(fb, on="Transaccion_ID", how="left")
     
-    # E. La "Guillotina" (Múltiples Nulos)
-    cols_criticas = ["Edad_Cliente", "Rating_Producto", "Satisfaccion_NPS", "Costo_Limpio"]
-    df["nulos"] = df[cols_criticas].isnull().sum(axis=1)
-    df = df[df["nulos"] < 2].copy()
+    # F. La "Guillotina de Calidad" (Regla de múltiples nulos)
+    # Filtramos filas que no aportan valor (muchos campos vacíos)
+    cols_para_nulos = [c for c in ["Edad_Cliente", "Rating_Producto", "Satisfaccion_NPS", "Costo_Limpio"] if c in df.columns]
+    if cols_para_nulos:
+        df["nulos_count"] = df[cols_para_nulos].isnull().sum(axis=1)
+        df = df[df["nulos_count"] < 2].copy()
 
-    # F. Imputación Final
+    # G. Finalización de Financieros
     df["Ciudad_Destino"] = df["Ciudad_Destino"].apply(norm_text)
     df["Categoria"] = df["Categoria"].apply(norm_text)
-    df["Margen_USD"] = (pd.to_numeric(df["Precio_Venta_Final"], errors='coerce') - 
-                        pd.to_numeric(df["Costo_Limpio"], errors='coerce'))
+    
+    # Asegurar tipos para cálculos de margen
+    precio = pd.to_numeric(df["Precio_Venta_Final"], errors='coerce')
+    costo = pd.to_numeric(df["Costo_Limpio"], errors='coerce')
+    cant = pd.to_numeric(df["Cantidad_Vendida"], errors='coerce')
+    
+    df["Margen_USD"] = (precio * cant) - (costo * cant)
     
     return df
 
