@@ -1,5 +1,8 @@
 from groq import Groq
 import pandas as pd
+client = Groq(
+    api_key=st.secrets["GROQ_API_KEY"]
+)
 
 def generar_insights_ia(df_filtrado, pregunta_negocio):
     """
