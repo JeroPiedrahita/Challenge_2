@@ -246,11 +246,7 @@ st.markdown(
     **📌 Interpretación rápida:**
 
     La correlación entre **{x_var_label}** y **{y_var_label}** es de  
-    **{corr:.2f}**, lo que sugiere una relación 
-    {"fuerte" if abs(corr) > 0.6 else "moderada" if abs(corr) > 0.3 else "débil"}.
-
-    Este patrón puede indicar oportunidades de mejora operativa
-    o riesgos que impactan la experiencia del cliente.
+    **{corr:.2f}**, lo que sugiere una relación relevante.
     """
 )
 
