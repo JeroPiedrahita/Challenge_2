@@ -1,43 +1,40 @@
-from groq import Groq
 import streamlit as st
-import pandas as pd
-client = Groq(
-    api_key=st.secrets["GROQ_API_KEY"]
-)
+from groq import Groq
 
-def generar_insights_ia(df_filtrado, pregunta_negocio):
-    """
-    Genera insights usando Llama-3 basados SOLO en el dataframe filtrado
-    """
 
-    # 1. Resumen numérico que sí entiende la IA
-    resumen = df_filtrado.describe(include="all").to_string()
+def generar_insights_ia(df_f, pregunta):
 
-    # 2. Prompt controlado (esto es CLAVE)
+    client = Groq(
+        api_key=st.secrets["GROQ_API_KEY"]
+    )
+
+    resumen = {
+        "filas": len(df_f),
+        "ingresos": float(df_f["Ingreso"].sum()),
+        "margen": float(df_f["Margen_Utilidad"].sum()),
+        "riesgo_promedio": float(
+            (df_f["Ticket_Soporte_Abierto"] == "Sí").mean()
+        )
+    }
+
     prompt = f"""
-Eres un analista senior de datos.
-Analiza la siguiente información y responde de forma clara, ejecutiva y accionable.
+    Eres un analista senior de operaciones logísticas.
 
-Pregunta de negocio:
-{pregunta_negocio}
+    Pregunta del usuario:
+    {pregunta}
 
-Resumen estadístico de los datos:
-{resumen}
+    Resumen operativo:
+    {resumen}
 
-Entrega:
-- 3 a 5 insights clave
-- Riesgos detectados
-- Oportunidades de mejora
-- Recomendaciones accionables
-"""
-
-    client = Groq(api_key="TU_API_KEY_AQUI")
+    Genera 3 insights claros y accionables.
+    """
 
     response = client.chat.completions.create(
         model="llama3-8b-8192",
         messages=[
             {"role": "user", "content": prompt}
-        ]
+        ],
+        temperature=0.3
     )
 
     return response.choices[0].message.content
