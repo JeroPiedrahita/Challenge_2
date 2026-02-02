@@ -323,51 +323,21 @@ st.pyplot(fig)
 # --------------------------------------------------
 st.subheader("⚠️ Riesgo Operativo por Bodega")
 
-riesgo = (
-    df_f
-    .assign(ticket_bin=df_f["Ticket_Soporte_Abierto"] == "Sí")
-    .groupby("Bodega_Origen")["ticket_bin"]
-    .mean()
-    .sort_values(ascending=False)
+fig = px.strip(
+    df_f,
+    x="Bodega_Origen",
+    y=df_f["Ticket_Soporte_Abierto"] == "Sí",
+    color="Bodega_Origen",
+    title="Distribución de Tickets por Bodega"
 )
 
-fig, ax = plt.subplots(figsize=(7, 4))
-
-ax.bar(
-    riesgo.index,
-    riesgo.values
+fig.update_layout(
+    template="plotly_white",
+    showlegend=False,
+    yaxis_title="Ticket Abierto"
 )
 
-ax.set_title("Riesgo Operativo por Bodega", fontsize=12)
-ax.set_ylabel("Tasa de Tickets")
-ax.set_xlabel("Bodega de Origen")
-
-# Línea de referencia: promedio global
-ax.axhline(
-    riesgo.mean(),
-    linestyle="--"
-)
-
-# Rotación suave como en dashboards
-ax.set_xticklabels(
-    riesgo.index,
-    rotation=30,
-    ha="right"
-)
-
-# Etiquetas numéricas discretas
-for i, v in enumerate(riesgo.values):
-    ax.text(
-        i,
-        v,
-        f"{v:.1%}",
-        ha="center",
-        va="bottom",
-        fontsize=9
-    )
-
-plt.tight_layout()
-st.pyplot(fig)
+st.plotly_chart(fig, use_container_width=True)
 
 
 
