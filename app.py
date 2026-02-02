@@ -120,12 +120,7 @@ df_fb_raw  = st.session_state.get("df_fb_raw")
 # --------------------------------------------------
 # Auditoría visual
 # --------------------------------------------------
-st.subheader("Auditoría de Calidad")
 
-col1.metric("Filas Originales", resumen["Filas originales"])
-col2.metric("Filas Finales", resumen["Filas finales"])
-col3.metric("Duplicados Eliminados", resumen["Duplicados eliminados"])
-col4.metric("Salud de Datos (%)", f'{resumen["Salud de datos (%)"]}%')
 # --------------------------------------------------
 # Integración
 # --------------------------------------------------
