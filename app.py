@@ -243,15 +243,16 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown(
     f"""
-    **📌 Interpretación rápida:**
+    **📌 Interpretación rápida**
 
     La correlación entre **{x_var_label}** y **{y_var_label}** es de  
     **{corr:.2f}**, lo que sugiere una relación relevante.
 
-    Este resultado ayuda a entender cómo una variable
-    puede influir sobre la otra dentro del proceso operativo.
+    Esto permite analizar cómo las variables operativas
+    influyen entre sí dentro del negocio.
     """
 )
+
 
 
 st.subheader("💡 ¿Dónde se gana y dónde se pierde dinero?")
