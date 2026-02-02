@@ -4,6 +4,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import unicodedata
+from data_processing import (
+    clean_inventario,
+    clean_transacciones,
+    clean_feedback
+)
+
 
 # --------------------------------------------------
 # Configuración general
@@ -76,64 +82,9 @@ if st.sidebar.button("🧹 Ejecutar Limpieza"):
     df_tx_raw  = pd.read_csv(tx_file, dtype=str)
     df_fb_raw  = pd.read_csv(fb_file, dtype=str)
 
-    # ---------------- Inventario ----------------
-    df_inv = df_inv_raw.copy()
-    df_inv["SKU_ID"] = df_inv["SKU_ID"].str.strip().str.upper()
-    df_inv["Categoria"] = df_inv["Categoria"].apply(norm)
-    df_inv["Bodega_Origen"] = df_inv["Bodega_Origen"].apply(norm)
-
-    for c in ["Stock_Actual","Costo_Unitario_USD","Lead_Time_Dias","Punto_Reorden"]:
-        df_inv[c] = pd.to_numeric(df_inv[c], errors="coerce")
-
-    df_inv["Ultima_Revision"] = pd.to_datetime(df_inv["Ultima_Revision"], errors="coerce")
-    df_inv["stock_negativo"] = df_inv["Stock_Actual"] < 0
-
-    df_inv["Costo_Unitario_USD"] = df_inv["Costo_Unitario_USD"].replace(0, np.nan)
-    df_inv["Costo_Unitario_Limpio"] = (
-        df_inv["Costo_Unitario_USD"]
-        .fillna(df_inv.groupby("Categoria")["Costo_Unitario_USD"].transform("median"))
-        .fillna(df_inv["Costo_Unitario_USD"].median())
-    )
-
-    df_inv["Lead_Time_Limpio"] = (
-        df_inv["Lead_Time_Dias"]
-        .replace(0, np.nan)
-        .fillna(df_inv.groupby("Bodega_Origen")["Lead_Time_Dias"].transform("median"))
-        .fillna(df_inv["Lead_Time_Dias"].median())
-    )
-
-    df_inv = df_inv.sort_values("Ultima_Revision").drop_duplicates("SKU_ID", keep="last")
-
-    # ---------------- Transacciones ----------------
-    df_tx = df_tx_raw.copy()
-    df_tx["SKU_ID"] = df_tx["SKU_ID"].str.strip().str.upper()
-    df_tx["Ciudad_Destino"] = df_tx["Ciudad_Destino"].apply(norm)
-
-    for c in ["Cantidad_Vendida","Precio_Venta_Final","Costo_Envio","Tiempo_Entrega_Real"]:
-        df_tx[c] = pd.to_numeric(df_tx[c], errors="coerce")
-
-    df_tx["Fecha_Venta"] = pd.to_datetime(df_tx["Fecha_Venta"], errors="coerce")
-    df_tx["Tiempo_Entrega_Limpio"] = df_tx["Tiempo_Entrega_Real"].clip(0,180)
-
-    ciudades = {"med":"Medellín","medellin":"Medellín","bog":"Bogotá","bogota":"Bogotá"}
-    df_tx["Ciudad_Destino_Limpia"] = df_tx["Ciudad_Destino"].map(ciudades).fillna(df_tx["Ciudad_Destino"].str.title())
-
-    # ---------------- Feedback ----------------
-    df_fb = df_fb_raw.drop_duplicates().copy()
-    df_fb["Edad_Cliente"] = pd.to_numeric(df_fb["Edad_Cliente"], errors="coerce")
-    df_fb.loc[(df_fb["Edad_Cliente"] < 0) | (df_fb["Edad_Cliente"] > 100), "Edad_Cliente"] = np.nan
-
-    df_fb["Rating_Producto"] = pd.to_numeric(df_fb["Rating_Producto"], errors="coerce")
-    df_fb.loc[(df_fb["Rating_Producto"] < 1) | (df_fb["Rating_Producto"] > 5), "Rating_Producto"] = np.nan
-    df_fb["Rating_Producto"] = df_fb["Rating_Producto"].fillna(df_fb["Rating_Producto"].median())
-
-    map_sn = {"si":"Sí","sí":"Sí","yes":"Sí","1":"Sí","no":"No","0":"No"}
-    df_fb["Ticket_Soporte_Abierto"] = df_fb["Ticket_Soporte_Abierto"].str.lower().str.strip().map(map_sn)
-    df_fb["Recomienda_Marca"] = df_fb["Recomienda_Marca"].str.lower().str.strip().map(map_sn)
-
-    df_fb["Satisfaccion_NPS"] = pd.to_numeric(df_fb["Satisfaccion_NPS"], errors="coerce")
-    df_fb["Comentario_Texto"] = df_fb["Comentario_Texto"].replace("---", np.nan)
-    df_fb["NPS_Grupo"] = df_fb["Satisfaccion_NPS"].apply(nps_grupo)
+df_inv = clean_inventario(df_inv_raw)
+df_tx  = clean_transacciones(df_tx_raw)
+df_fb  = clean_feedback(df_fb_raw))
 
     # ---------------- Auditoría ----------------
     st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
