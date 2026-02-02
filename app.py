@@ -190,15 +190,10 @@ tab1, tab2, tab3, tab4 = st.tabs(
 #  Auditoria
 #----------------------------------------------------
 
-def resumen_limpieza(df_raw, df_clean):
-    return {
-        "Filas originales": len(df_raw),
-        "Filas finales": len(df_clean),
-        "Duplicados eliminados": len(df_raw) - len(df_raw.drop_duplicates()),
-        "Salud de datos (%)": health_report(df_raw, df_clean)["health_score"]
-    }
-
 with tab1:
+    if "df_inv_raw" not in st.session_state:
+        st.warning("Ejecuta la limpieza para ver la auditoría.")
+        st.stop()
 
 
     st.subheader("🔎 Transparencia de Limpieza – Inventario")
