@@ -205,17 +205,17 @@ def resumen_limpieza(df_raw, df_clean):
 
 with tab1:
 
+
     st.subheader("🔎 Transparencia de Limpieza – Inventario")
 
     resumen = resumen_limpieza(df_inv_raw, df_inv)
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Filas Iniciales", resumen["Filas iniciales"])
+    col1.metric("Filas Originales", resumen["Filas originales"])
     col2.metric("Filas Finales", resumen["Filas finales"])
-    col3.metric("Eliminadas", resumen["Filas eliminadas"])
-    col4.metric("Duplicados", resumen["Duplicados"])
-    col5.metric(
+    col3.metric("Duplicados Eliminados", resumen["Duplicados eliminados"])
+    col4.metric(
         "Salud de Datos (%)",
         f'{resumen["Salud de datos (%)"]}%'
     )
