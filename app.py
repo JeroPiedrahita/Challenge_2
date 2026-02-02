@@ -206,9 +206,9 @@ with tab1:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Filas Originales", resumen["Filas originales"])
+    col1.metric("Filas Originales", resumen["Filas iniciales"])
     col2.metric("Filas Finales", resumen["Filas finales"])
-    col3.metric("Duplicados Eliminados", resumen["Duplicados eliminados"])
+    col3.metric("Duplicados Eliminados", resumen["Duplicados"])
     col4.metric(
         "Salud de Datos (%)",
         f'{resumen["Salud de datos (%)"]}%'
