@@ -14,7 +14,7 @@ st.set_page_config(
 
 st.title("📦 EDA Operacional – TechLog")
 st.markdown(
-    "Auditoría de datos, integración y análisis de riesgo para una operación **Tech + Logistics**."
+    "Auditoría, integración y análisis de riesgo para una operación **Tech + Logistics**."
 )
 
 # --------------------------------------------------
@@ -135,10 +135,6 @@ if st.sidebar.button("🧹 Ejecutar Limpieza"):
     df_fb["NPS_Grupo"] = df_fb["Satisfaccion_NPS"].apply(nps_grupo)
 
     # ---------------- Auditoría ----------------
-    st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
-    st.session_state["rep_tx"]  = health_report(df_tx_raw, df_tx)
-    st.session_state["rep_fb"]  = health_report(df_fb_raw, df_fb)
-
     st.session_state["df_inv"] = df_inv
     st.session_state["df_tx"]  = df_tx
     st.session_state["df_fb"]  = df_fb
@@ -155,16 +151,6 @@ df_tx  = st.session_state["df_tx"]
 df_fb  = st.session_state["df_fb"]
 
 # --------------------------------------------------
-# Auditoría visual
-# --------------------------------------------------
-st.subheader("Auditoría de Calidad")
-
-col1, col2, col3 = st.columns(3)
-col1.metric("Health Inventario", st.session_state["rep_inv"]["health_score"])
-col2.metric("Health Transacciones", st.session_state["rep_tx"]["health_score"])
-col3.metric("Health Feedback", st.session_state["rep_fb"]["health_score"])
-
-# --------------------------------------------------
 # Integración
 # --------------------------------------------------
 df_master = (
@@ -173,42 +159,40 @@ df_master = (
     .merge(df_fb, on="Transaccion_ID", how="left")
 )
 
-df_master["sku_fantasma"] = df_master["_merge"] == "left_only"
 df_master["Ingreso"] = df_master["Cantidad_Vendida"] * df_master["Precio_Venta_Final"]
-df_master["Costo_Total"] = df_master["Cantidad_Vendida"] * df_master["Costo_Unitario_Limpio"] + df_master["Costo_Envio"]
+df_master["Costo_Total"] = (
+    df_master["Cantidad_Vendida"] * df_master["Costo_Unitario_Limpio"] +
+    df_master["Costo_Envio"]
+)
 df_master["Margen_Utilidad"] = df_master["Ingreso"] - df_master["Costo_Total"]
-df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Lead_Time_Limpio"]
 
 # --------------------------------------------------
-# Storytelling visual
+# VISUALIZACIÓN MEJORADA DEL MARGEN
 # --------------------------------------------------
-st.subheader("Rentabilidad Operativa")
+st.subheader("Rentabilidad Operativa – Vista Ejecutiva")
+
+margen = df_master["Margen_Utilidad"].dropna()
+margen = margen[margen > -500]  # recorte lógico
 
 fig, ax = plt.subplots()
-df_master["Margen_Utilidad"].dropna().plot(kind="hist", bins=40, ax=ax)
-ax.set_xlabel("Margen (USD)")
+margen.plot(kind="hist", bins=40, ax=ax)
+ax.axvline(0, color="red", linestyle="--", label="Punto de Quiebre")
+ax.set_xlabel("Margen de Utilidad (USD)")
 ax.set_ylabel("Frecuencia")
+ax.legend()
 st.pyplot(fig)
 
-st.subheader("Impacto Logístico en Satisfacción")
+# Comparación positivo vs negativo
+st.subheader("Distribución de Ventas por Tipo de Margen")
 
-fig, ax = plt.subplots()
-ax.scatter(df_master["Tiempo_Entrega_Limpio"], df_master["Satisfaccion_NPS"], alpha=0.3)
-ax.set_xlabel("Tiempo de Entrega (días)")
-ax.set_ylabel("NPS")
-st.pyplot(fig)
-
-st.subheader("Riesgo Operativo por Bodega")
-
-riesgo = (
-    df_master
-    .assign(ticket_bin=df_master["Ticket_Soporte_Abierto"] == "Sí")
-    .groupby("Bodega_Origen")["ticket_bin"]
-    .mean()
-    .sort_values(ascending=False)
+df_master["Tipo_Margen"] = np.where(
+    df_master["Margen_Utilidad"] < 0,
+    "Margen Negativo",
+    "Margen Positivo"
 )
 
 fig, ax = plt.subplots()
-riesgo.plot(kind="bar", ax=ax)
-ax.set_ylabel("Tasa de Tickets")
+df_master["Tipo_Margen"].value_counts().plot(kind="bar", ax=ax)
+ax.set_ylabel("Número de Transacciones")
+ax.set_xlabel("Tipo de Margen")
 st.pyplot(fig)
