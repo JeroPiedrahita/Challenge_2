@@ -1,4 +1,5 @@
 from groq import Groq
+import streamlit as st
 import pandas as pd
 client = Groq(
     api_key=st.secrets["GROQ_API_KEY"]
