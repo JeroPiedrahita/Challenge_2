@@ -492,27 +492,25 @@ with tab3:
 
 
 with tab4:
-        st.subheader("🤖 Insights Inteligentes (IA)")
-    
-        st.markdown("""
-        Este análisis se genera **exclusivamente** con los datos filtrados por el usuario.
-        """)
-    
-        pregunta = st.text_area(
-            "Pregunta de negocio para la IA",
-            value="¿Qué patrones clave afectan la rentabilidad y la satisfacción del cliente?"
-        )
-    
-        if st.button("🧠 Generar análisis con IA"):
-            with st.spinner("Analizando datos con Llama-3..."):
-                resultado = generar_insights_ia(
-                    df_f,  # 👈 ESTE ES EL DATAFRAME FILTRADO
-                    pregunta
-                )
-    
-            st.markdown("### 📊 Resultados del análisis")
-            st.write(resultado)
-    
-            # aquí llamas a Groq / Llama-3
-            st.info("🔍 Analizando datos filtrados…")
+    st.subheader("🤖 Insights Generados por IA")
+
+    pregunta = st.text_area(
+        "¿Qué deseas analizar con IA?",
+        placeholder="Ej: ¿Qué bodegas representan mayor riesgo operativo?"
+    )
+
+    if st.button("🧠 Analizar con IA"):
+        if "groq_api_key" not in st.session_state:
+            st.warning("⚠️ Ingresa primero tu API Key de Groq en la barra lateral.")
+            st.stop()
+
+        with st.spinner("Analizando datos filtrados con IA..."):
+            resultado = generar_insights_ia(
+                df_f,
+                pregunta,
+                st.session_state["groq_api_key"]
+            )
+
+        st.success("✅ Análisis completado")
+        st.markdown(resultado)
 
