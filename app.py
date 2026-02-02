@@ -114,26 +114,18 @@ df_inv = st.session_state["df_inv"]
 df_tx  = st.session_state["df_tx"]
 df_fb  = st.session_state["df_fb"]
 
-# --------------------------------------------------
-# Recuperar datos desde session_state
-# --------------------------------------------------
-df_inv_raw = st.session_state["df_inv_raw"]
-df_tx_raw  = st.session_state["df_tx_raw"]
-df_fb_raw  = st.session_state["df_fb_raw"]
-
-df_inv = st.session_state["df_inv"]
-df_tx  = st.session_state["df_tx"]
-df_fb  = st.session_state["df_fb"]
+df_inv_raw = st.session_state.get("df_inv_raw")
+df_tx_raw  = st.session_state.get("df_tx_raw")
+df_fb_raw  = st.session_state.get("df_fb_raw")
 # --------------------------------------------------
 # Auditoría visual
 # --------------------------------------------------
 st.subheader("Auditoría de Calidad")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Health Inventario", st.session_state["rep_inv"]["health_score"])
-col2.metric("Health Transacciones", st.session_state["rep_tx"]["health_score"])
-col3.metric("Health Feedback", st.session_state["rep_fb"]["health_score"])
-
+col1.metric("Filas Originales", resumen["Filas originales"])
+col2.metric("Filas Finales", resumen["Filas finales"])
+col3.metric("Duplicados Eliminados", resumen["Duplicados eliminados"])
+col4.metric("Salud de Datos (%)", f'{resumen["Salud de datos (%)"]}%')
 # --------------------------------------------------
 # Integración
 # --------------------------------------------------
@@ -211,7 +203,7 @@ def resumen_limpieza(df_raw, df_clean):
         "Salud de datos (%)": health_report(df_raw, df_clean)["health_score"]
     }
 
-with tab_auditoria:
+with tab1:
 
     st.subheader("🔎 Transparencia de Limpieza – Inventario")
 
@@ -229,32 +221,32 @@ with tab_auditoria:
     )
 
     st.divider()
-st.subheader("📂 Vista Antes vs Después")
-
-dataset = st.selectbox(
-    "Selecciona el dataset",
-    ["Inventario", "Transacciones", "Feedback"]
-)
-
-if dataset == "Inventario":
-    df_raw = st.session_state["df_inv_raw"]
-    df_clean = df_inv
-elif dataset == "Transacciones":
-    df_raw = st.session_state["df_tx_raw"]
-    df_clean = df_tx
-else:
-    df_raw = st.session_state["df_fb_raw"]
-    df_clean = df_fb
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("### ❌ Antes de la Limpieza")
-    st.dataframe(df_raw.head(100), use_container_width=True)
-
-with col2:
-    st.markdown("### ✅ Después de la Limpieza")
-    st.dataframe(df_clean.head(100), use_container_width=True)
+    st.subheader("📂 Vista Antes vs Después")
+    
+    dataset = st.selectbox(
+        "Selecciona el dataset",
+        ["Inventario", "Transacciones", "Feedback"]
+    )
+    
+    if dataset == "Inventario":
+        df_raw = st.session_state["df_inv_raw"]
+        df_clean = df_inv
+    elif dataset == "Transacciones":
+        df_raw = st.session_state["df_tx_raw"]
+        df_clean = df_tx
+    else:
+        df_raw = st.session_state["df_fb_raw"]
+        df_clean = df_fb
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### ❌ Antes de la Limpieza")
+        st.dataframe(df_raw.head(100), use_container_width=True)
+    
+    with col2:
+        st.markdown("### ✅ Después de la Limpieza")
+        st.dataframe(df_clean.head(100), use_container_width=True)
 with tab2:
 
     # --------------------------------------------------
