@@ -1,6 +1,6 @@
 from groq import Groq
 
-def generar_insights_ia(df_filtrado, pregunta, api_key):
+def generar_insights_ia(df_filtrado, api_key):
 
     if not api_key:
         return "❌ No se proporcionó una API Key válida."
@@ -8,24 +8,31 @@ def generar_insights_ia(df_filtrado, pregunta, api_key):
     client = Groq(api_key=api_key)
 
     resumen = {
-        "filas": len(df_filtrado),
-        "ingresos": round(df_filtrado["Ingreso"].sum(), 2),
-        "margen": round(df_filtrado["Margen_Utilidad"].sum(), 2),
-        "riesgo_promedio": round(
-            (df_filtrado["Ticket_Soporte_Abierto"] == "Sí").mean(), 2
+        "ventas": len(df_filtrado),
+        "ingresos_totales": round(df_filtrado["Ingreso"].sum(), 2),
+        "margen_total": round(df_filtrado["Margen_Utilidad"].sum(), 2),
+        "margen_promedio": round(df_filtrado["Margen_Utilidad"].mean(), 2),
+        "tiempo_entrega_promedio": round(df_filtrado["Tiempo_Entrega_Limpio"].mean(), 2),
+        "riesgo_operativo": round(
+            (df_filtrado["Ticket_Soporte_Abierto"] == "Sí").mean() * 100, 1
         )
     }
 
     prompt = f"""
-    Eres un analista senior de logística y negocio.
+    Actúa como un **analista senior de logística y negocio**.
 
-    Con base en el siguiente resumen de datos filtrados:
+    A partir del siguiente resumen de datos operativos filtrados:
     {resumen}
 
-    Responde de forma clara y accionable a la siguiente pregunta:
-    {pregunta}
+    Genera un **informe ejecutivo** con:
 
-    Da insights ejecutivos, no técnicos.
+    1. Principales hallazgos operativos
+    2. Identificación de riesgos logísticos y financieros
+    3. Impacto del desempeño logístico sobre el margen
+    4. Recomendaciones claras y accionables para la gerencia
+
+    Usa un lenguaje claro, profesional y orientado a decisiones.
+    No menciones modelos, IA ni aspectos técnicos.
     """
 
     response = client.chat.completions.create(
