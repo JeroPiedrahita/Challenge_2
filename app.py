@@ -172,7 +172,6 @@ refrescar = st.sidebar.button("🔄 Refrescar Análisis")
 # Aplicar filtros
 df_f = df_master[
     (df_master["Bodega_Origen"].isin(bodegas)) &
-    (df_master["Categoria"].isin(categorias)) &
     (df_master["Fecha_Venta"].between(
         pd.to_datetime(rango_fechas[0]),
         pd.to_datetime(rango_fechas[1])
