@@ -249,8 +249,8 @@ st.markdown(
     **{corr:.2f}**, lo que sugiere una relación 
     {"fuerte" if abs(corr) > 0.6 else "moderada" if abs(corr) > 0.3 else "débil"}.
 
-    Esto puede indicar oportunidades de optimización operativa o riesgos
-    que impactan directamente la experiencia del cliente.
+    Este patrón puede indicar oportunidades de mejora operativa
+    o riesgos que impactan la experiencia del cliente.
     """
 )
 
