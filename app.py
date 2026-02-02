@@ -244,20 +244,29 @@ st.plotly_chart(fig, use_container_width=True)
 # --- AQUÍ ESTÁ LA CORRECCIÓN ---
 # Calculamos la correlación de Pearson entre las dos variables seleccionadas
 # Usamos .dropna() para que no de error si hay valores nulos
+# 1. Calculamos la correlación
 corr = df_f[x_var].corr(df_f[y_var])
 
+# 2. Definimos la etiqueta de intensidad antes del markdown
+if abs(corr) > 0.7:
+    intensidad = "fuerte"
+elif abs(corr) > 0.3:
+    intensidad = "moderada"
+else:
+    intensidad = "débil"
+
+# 3. Mostramos el markdown limpio
 st.markdown(
     f"""
     **📌 Interpretación rápida**
 
     La correlación entre **{x_var_label}** y **{y_var_label}** es de  
-    **{corr:.2f}**, lo que sugiere una relación {"fuerte" if abs(corr) > 0.7 else "moderada" if abs(corr) > 0.3 else "débil"}.
+    **{corr:.2f}**, lo que sugiere una relación **{intensidad}**.
 
     Esto permite analizar cómo las variables operativas
     influyen entre sí dentro del negocio.
     """
 )
-
 
 
 st.subheader("💡 ¿Dónde se gana y dónde se pierde dinero?")
