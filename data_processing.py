@@ -85,26 +85,25 @@ def clean_inventario(df):
     
     return df_clean, log
 
-
 def clean_transacciones(df):
     """Limpia el dataset de transacciones"""
     df_clean = df.copy()
     log = []
-    
+
     # 1. Limpiar fechas
     df_clean['Fecha_Venta'] = pd.to_datetime(df_clean['Fecha_Venta'], errors='coerce')
     nulls = df_clean['Fecha_Venta'].isnull().sum()
     if nulls > 0:
         df_clean = df_clean[df_clean['Fecha_Venta'].notna()]
         log.append(f"Eliminadas {nulls} transacciones sin fecha")
-    
+
     # Eliminar fechas futuras
     today = pd.Timestamp.now()
     future = (df_clean['Fecha_Venta'] > today).sum()
     if future > 0:
         df_clean = df_clean[df_clean['Fecha_Venta'] <= today]
-        log.append(f"Eliminadas {future} transacciones futuras")
-    
+        log.append(f"Eliminadas {future} transacciones con fecha futura")
+
     # 2. Normalizar ciudades
     city_map = {
         'MED': 'Medellín', 'med': 'Medellín', 'Medellin': 'Medellín',
@@ -112,28 +111,42 @@ def clean_transacciones(df):
     }
     df_clean['Ciudad_Destino'] = df_clean['Ciudad_Destino'].replace(city_map)
     log.append("Normalizados nombres de ciudades")
-    
-    # 3. Limpiar tiempos de entrega (eliminar outliers extremos >90 días)
-    outliers = (df_clean['Tiempo_Entrega'] > 90).sum()
+
+    # 3. Limpiar tiempo de entrega (columna real)
+    col_tiempo = 'Tiempo_Entrega_Real'
+
+    df_clean[col_tiempo] = pd.to_numeric(df_clean[col_tiempo], errors='coerce')
+
+    outliers = (df_clean[col_tiempo] > 90).sum()
     if outliers > 0:
-        df_clean.loc[df_clean['Tiempo_Entrega'] > 90, 'Tiempo_Entrega'] = df_clean['Tiempo_Entrega'].median()
-        log.append(f"Corregidos {outliers} tiempos de entrega extremos")
-    
-    # 4. Eliminar cantidades/precios inválidos
-    invalid = ((df_clean['Cantidad_Vendida'] <= 0) | (df_clean['Precio_Venta_Final'] <= 0)).sum()
+        mediana = df_clean[col_tiempo].median()
+        df_clean.loc[df_clean[col_tiempo] > 90, col_tiempo] = mediana
+        log.append(
+            f"Corregidos {outliers} tiempos de entrega > 90 días "
+            f"(mediana = {round(mediana, 2)})"
+        )
+
+    # 4. Eliminar cantidades y precios inválidos
+    invalid = (
+        (df_clean['Cantidad_Vendida'] <= 0) |
+        (df_clean['Precio_Venta_Final'] <= 0)
+    ).sum()
+
     if invalid > 0:
         df_clean = df_clean[
-            (df_clean['Cantidad_Vendida'] > 0) & 
+            (df_clean['Cantidad_Vendida'] > 0) &
             (df_clean['Precio_Venta_Final'] > 0)
         ]
-        log.append(f"Eliminadas {invalid} transacciones con valores inválidos")
-    
+        log.append(
+            f"Eliminadas {invalid} transacciones con cantidades o precios inválidos"
+        )
+
     # 5. Eliminar duplicados
     dups = df_clean.duplicated(subset=['Transaccion_ID']).sum()
     if dups > 0:
         df_clean = df_clean.drop_duplicates(subset=['Transaccion_ID'])
-        log.append(f"Eliminados {dups} IDs duplicados")
-    
+        log.append(f"Eliminados {dups} IDs de transacción duplicados")
+
     return df_clean, log
 
 
