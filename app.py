@@ -2,116 +2,146 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 import unicodedata
 
-# 1. IDENTIDAD VISUAL CORPORATIVA
-st.set_page_config(page_title="TechLogistics Analytics Pro", layout="wide")
+# --- 1. CONFIGURACIÓN Y ESTILO ---
+st.set_page_config(page_title="TechLogistics Senior Dashboard", layout="wide", page_icon="📈")
 
-# Colores institucionales: Azul Profundo, Acero y Alerta
+# Colores Corporativos TechLog
 TECH_BLUE = "#1E3A8A"
-STEEL_GRAY = "#64748B"
-SUCCESS_GREEN = "#10B981"
-DANGER_RED = "#EF4444"
+TECH_SKY = "#0EA5E9"
+TECH_DANGER = "#EF4444"
+TECH_SUCCESS = "#10B981"
 
-# 2. PROCESAMIENTO DE DATOS (INGENIERÍA DE CARACTERÍSTICAS)
-def fix_headers(df):
+st.markdown(f"""
+    <style>
+    .main {{ background-color: #F8FAFC; }}
+    .stMetric {{ background-color: white; border-radius: 10px; border-left: 5px solid {TECH_BLUE}; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 2. FUNCIONES DE LIMPIEZA "VIVA" (Lógica de Consultoría) ---
+def norm_text(x):
+    if pd.isna(x): return "N/A"
+    x = str(x).strip().upper()
+    return unicodedata.normalize("NFKD", x).encode("ascii","ignore").decode("utf-8")
+
+def clean_headers(df):
     df.columns = df.columns.str.strip().str.replace(r'[^\w\s]', '', regex=True)
-    if 'SKU_ID' not in df.columns:
-        df.rename(columns={df.columns[0]: 'SKU_ID'}, inplace=True)
+    if 'SKUID' not in df.columns: df.rename(columns={df.columns[0]: 'SKU_ID'}, inplace=True)
     return df
 
 @st.cache_data
-def process_data(inv_f, tx_f, fb_f):
-    # Carga blindada
-    inv = fix_headers(pd.read_csv(inv_f, sep=None, engine='python', encoding='utf-8-sig'))
-    tx = fix_headers(pd.read_csv(tx_f, sep=None, engine='python', encoding='utf-8-sig'))
-    fb = fix_headers(pd.read_csv(fb_f, sep=None, engine='python', encoding='utf-8-sig'))
+def master_cleaning_process(inv_f, tx_f, fb_f):
+    # A. Carga Blindada
+    inv = clean_headers(pd.read_csv(inv_f, sep=None, engine='python', encoding='utf-8-sig'))
+    tx = clean_headers(pd.read_csv(tx_f, sep=None, engine='python', encoding='utf-8-sig'))
+    fb = clean_headers(pd.read_csv(fb_f, sep=None, engine='python', encoding='utf-8-sig'))
+
+    # B. Limpieza de Feedback (Reglas Vivas)
+    fb["Feedback_ID"] = fb["Feedback_ID"].astype(str)
+    fb = fb.drop_duplicates(subset=["Feedback_ID"])
     
-    # Normalización de Llaves
-    inv["SKU_ID"] = inv["SKU_ID"].astype(str).str.upper().str.strip()
-    tx["SKU_ID"] = tx["SKU_ID"].astype(str).str.upper().str.strip()
+    # Edad IQR
+    fb["Edad_Cliente"] = pd.to_numeric(fb["Edad_Cliente"], errors='coerce')
+    q1, q3 = fb["Edad_Cliente"].quantile([0.25, 0.75])
+    iqr = q3 - q1
+    fb.loc[(fb["Edad_Cliente"] < q1 - 1.5*iqr) | (fb["Edad_Cliente"] > q3 + 1.5*iqr), "Edad_Cliente"] = np.nan
     
-    # Integración Master
-    df = tx.merge(inv, on="SKU_ID", how="left")
-    df = df.merge(fb, on="Transaccion_ID", how="left")
+    # Ratings estrictos 1-5
+    for r in ["Rating_Producto", "Rating_Logistica"]:
+        fb[r] = pd.to_numeric(fb[r], errors='coerce')
+        fb.loc[(fb[r] < 1) | (fb[r] > 5), r] = np.nan
+
+    # C. Limpieza de Inventario (Costos IQR por Categoría)
+    inv["Costo_Unitario_USD"] = pd.to_numeric(inv["Costo_Unitario_USD"], errors='coerce')
+    inv["Costo_Limpio"] = inv.groupby("Categoria")["Costo_Unitario_USD"].transform(
+        lambda x: x.mask((x < x.quantile(0.05)) | (x > x.quantile(0.95)), x.median())
+    )
+
+    # D. Integración Master
+    df = tx.merge(inv, on="SKU_ID", how="left").merge(fb, on="Transaccion_ID", how="left")
     
-    # Casting numérico y limpieza de financieros
-    cols = ["Precio_Venta_Final", "Costo_Unitario_USD", "Cantidad_Vendida", "Satisfaccion_NPS", "Tiempo_Entrega_Real"]
-    for c in cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors='coerce')
-    
-    # Imputación de costos atípicos por mediana de categoría
-    df["Costo_Unitario_USD"] = df["Costo_Unitario_USD"].fillna(df.groupby("Categoria")["Costo_Unitario_USD"].transform("median"))
-    
-    # Kpis Derivados
-    df["Ingreso_Bruto"] = df["Cantidad_Vendida"] * df["Precio_Venta_Final"]
-    df["Margen_Neto"] = df["Ingreso_Bruto"] - (df["Cantidad_Vendida"] * df["Costo_Unitario_USD"])
-    df["Estado_Margen"] = np.where(df["Margen_Neto"] > 0, "Rentable", "Riesgo/Pérdida")
+    # E. La "Guillotina" (Múltiples Nulos)
+    cols_criticas = ["Edad_Cliente", "Rating_Producto", "Satisfaccion_NPS", "Costo_Limpio"]
+    df["nulos"] = df[cols_criticas].isnull().sum(axis=1)
+    df = df[df["nulos"] < 2].copy()
+
+    # F. Imputación Final
+    df["Ciudad_Destino"] = df["Ciudad_Destino"].apply(norm_text)
+    df["Categoria"] = df["Categoria"].apply(norm_text)
+    df["Margen_USD"] = (pd.to_numeric(df["Precio_Venta_Final"], errors='coerce') - 
+                        pd.to_numeric(df["Costo_Limpio"], errors='coerce'))
     
     return df
 
-# 3. INTERFAZ DE USUARIO (UI/UX)
-st.title("🚀 TechLogistics Executive Control")
+# --- 3. UI - SIDEBAR Y FILTROS ---
+st.sidebar.title("💎 TechLog Master BI")
+with st.sidebar.expander("📂 Carga de Datos", expanded=True):
+    f1 = st.file_uploader("Inventario", type="csv")
+    f2 = st.file_uploader("Transacciones", type="csv")
+    f3 = st.file_uploader("Feedback", type="csv")
 
-st.sidebar.title("Configuración")
-inv_f = st.sidebar.file_uploader("Inventario", type="csv")
-tx_f = st.sidebar.file_uploader("Transacciones", type="csv")
-fb_f = st.sidebar.file_uploader("Feedback", type="csv")
-
-if not (inv_f and tx_f and fb_f):
-    st.warning("⚠️ Esperando carga de archivos CSV para iniciar auditoría...")
+if not (f1 and f2 and f3):
+    st.info("👋 Bienvenido, Senior. Por favor, cargue los archivos CSV para activar el motor de análisis.")
     st.stop()
 
-df_master = process_data(inv_f, tx_f, fb_f)
+df = master_cleaning_process(f1, f2, f3)
 
-# FILTROS DE NEGOCIO
-with st.sidebar:
+# Filtros Dinámicos
+st.sidebar.subheader("🎯 Segmentación")
+sel_cat = st.sidebar.multiselect("Líneas de Producto", df["Categoria"].unique(), default=df["Categoria"].unique())
+sel_city = st.sidebar.multiselect("Ciudades de Envío", df["Ciudad_Destino"].unique(), default=df["Ciudad_Destino"].unique())
+
+df_view = df[(df["Categoria"].isin(sel_cat)) & (df["Ciudad_Destino"].isin(sel_city))]
+
+# --- 4. DASHBOARD - VISUALIZACIÓN ---
+tab_gen, tab_geo, tab_lab = st.tabs(["🏛️ Visión Ejecutiva", "📍 Análisis Geográfico", "🔬 Lab. de Insights"])
+
+with tab_gen:
+    st.markdown("### KPIs de Operación")
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Venta Bruta", f"${df_view['Precio_Venta_Final'].sum():,.0f}")
+    k2.metric("Margen Neto", f"${df_view['Margen_USD'].sum():,.0f}")
+    k3.metric("NPS Avg", f"{round(df_view['Satisfaccion_NPS'].mean(), 1)}")
+    k4.metric("Ciclo Entrega", f"{round(df_view['Tiempo_Entrega_Real'].mean(), 1)} d")
+
     st.divider()
-    cat_list = df_master["Categoria"].dropna().unique().tolist()
-    sel_cat = st.multiselect("Categoría de Producto", cat_list, default=cat_list[:3])
-    
-    bod_list = df_master["Bodega_Origen"].dropna().unique().tolist()
-    sel_bod = st.multiselect("Bodega de Origen", bod_list, default=bod_list)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("📊 Distribución por Categoría")
+        fig_pie = px.pie(df_view, names="Categoria", values="Precio_Venta_Final", color_discrete_sequence=px.colors.qualitative.Prism, hole=0.4)
+        st.plotly_chart(fig_pie, use_container_width=True)
+    with c2:
+        st.subheader("💰 Rentabilidad Operativa")
+        fig_rent = px.histogram(df_view, x="Margen_USD", color="Categoria", barmode="overlay", nbins=30)
+        st.plotly_chart(fig_rent, use_container_width=True)
 
-df_filtrado = df_master[(df_master["Categoria"].isin(sel_cat)) & (df_master["Bodega_Origen"].isin(sel_bod))]
+with tab_geo:
+    st.subheader("🌍 Análisis Exhaustivo de Ciudades")
+    city_data = df_view.groupby("Ciudad_Destino").agg({
+        "Margen_USD": "sum",
+        "Tiempo_Entrega_Real": "mean",
+        "Satisfaccion_NPS": "mean"
+    }).sort_values("Margen_USD", ascending=True).reset_index()
 
-# 4. DASHBOARD DE INDICADORES (MÉTRICAS)
-col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-col_m1.metric("Ingresos", f"${df_filtrado['Ingreso_Bruto'].sum():,.0f}", delta="Ventas Totales")
-col_m2.metric("Margen Neto", f"${df_filtrado['Margen_Neto'].sum():,.0f}", delta=f"{round(df_filtrado['Margen_Neto'].mean(), 2)} avg")
-col_m3.metric("NPS Satisfacción", f"{round(df_filtrado['Satisfaccion_NPS'].mean(), 1)} / 10")
-col_m4.metric("Tiempo Entrega", f"{round(df_filtrado['Tiempo_Entrega_Real'].mean(), 1)} días")
+    # Barras Horizontales de Margen
+    fig_city = px.bar(city_data, x="Margen_USD", y="Ciudad_Destino", orientation='h',
+                      color="Margen_USD", color_continuous_scale="RdBu", 
+                      title="Margen Acumulado por Ciudad")
+    st.plotly_chart(fig_city, use_container_width=True)
 
-# 5. VISUALIZACIONES ESTRATÉGICAS
-st.divider()
-c1, c2 = st.columns(2)
+    # Tabla de Eficiencia Geográfica
+    st.markdown("#### Ranking de Ciudades por NPS y Entrega")
+    st.dataframe(city_data.style.background_gradient(cmap="Blues"), use_container_width=True)
 
-with c1:
-    st.subheader("📊 Rentabilidad por Categoría (USD)")
-    fig_bar = px.bar(df_filtrado.groupby("Categoria")["Margen_Neto"].sum().reset_index(), 
-                     x="Margen_Neto", y="Categoria", orientation='h',
-                     color="Margen_Neto", color_continuous_scale="Blues")
-    st.plotly_chart(fig_bar, use_container_width=True)
-
-with c2:
-    st.subheader("🎯 Mix de Ventas por Estado de Riesgo")
-    fig_pie = px.pie(df_filtrado, names="Estado_Margen", values="Ingreso_Bruto",
-                     color="Estado_Margen", color_discrete_map={"Rentable": SUCCESS_GREEN, "Riesgo/Pérdida": DANGER_RED})
-    st.plotly_chart(fig_pie, use_container_width=True)
-
-# 6. LABORATORIO DE CORRELACIÓN (INSIGHTS)
-st.subheader("🧬 Análisis de Correlación Dinámica")
-cx1, cx2 = st.columns([1, 3])
-
-with cx1:
-    vx = st.selectbox("Eje X (Causa)", ["Tiempo_Entrega_Real", "Costo_Unitario_USD", "Cantidad_Vendida"])
-    vy = st.selectbox("Eje Y (Efecto)", ["Satisfaccion_NPS", "Margen_Neto"])
-    
-with cx2:
-    fig_scat = px.scatter(df_filtrado, x=vx, y=vy, color="Categoria", 
-                          trendline="ols", title=f"Impacto de {vx} en {vy}")
-    st.plotly_chart(fig_scat, use_container_width=True)
-
-st.success("✅ Dashboard actualizado con éxito. El archivo requirements.txt es necesario para el despliegue.")
+with tab_lab:
+    st.subheader("🧬 Correlaciones de Negocio")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        x_axis = st.selectbox("Eje X (Causa)", ["Tiempo_Entrega_Real", "Edad_Cliente", "Precio_Venta_Final"])
+        y_axis = st.selectbox("Eje Y (Efecto)", ["Satisfaccion_NPS", "Margen_USD"])
+    with col2:
+        fig_scat = px.scatter(df_view, x=x_axis, y=y_axis, color="Categoria", trendline="ols",
+                              title=f"Impacto de {x_axis} en {y_axis}")
+        st.plotly_chart(fig_scat, use_container_width=True)
