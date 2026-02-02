@@ -4,28 +4,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 import unicodedata
 
-# ==================================================
-# CONFIGURACIÓN GENERAL
-# ==================================================
+# --------------------------------------------------
+# Configuración general
+# --------------------------------------------------
 st.set_page_config(
-    page_title="TechLog | Auditoría & Riesgo Operativo",
+    page_title="EDA Operacional – TechLog",
     layout="wide"
 )
 
-st.title("📦 TechLog – Auditoría, Integración y Riesgo Operativo")
-st.markdown("""
-Plataforma analítica para **auditoría de datos, detección de riesgos financieros
-y diagnóstico logístico**, diseñada para una empresa Tech + Logistics.
-""")
+st.title("📦 EDA Operacional – TechLog")
+st.markdown(
+    "Auditoría de datos, integración y análisis de riesgo para una operación **Tech + Logistics**."
+)
 
-# ==================================================
-# FUNCIONES AUXILIARES
-# ==================================================
+# --------------------------------------------------
+# Funciones auxiliares
+# --------------------------------------------------
 def norm(x):
     if pd.isna(x):
         return x
     x = str(x).strip().lower()
-    return unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode("utf-8")
+    return unicodedata.normalize("NFKD", x).encode("ascii","ignore").decode("utf-8")
 
 def nps_grupo(x):
     if pd.isna(x): return np.nan
@@ -56,31 +55,27 @@ def health_report(df_raw, df_clean):
         "outliers": int(outliers)
     }
 
-# ==================================================
-# SIDEBAR – INGESTA
-# ==================================================
-st.sidebar.title("📂 Ingesta de Datos Crudos")
+# --------------------------------------------------
+# Sidebar – Ingesta
+# --------------------------------------------------
+st.sidebar.title("Carga de Datos")
 
 inv_file = st.sidebar.file_uploader("Inventario", type="csv")
 tx_file  = st.sidebar.file_uploader("Transacciones", type="csv")
 fb_file  = st.sidebar.file_uploader("Feedback Clientes", type="csv")
 
-if st.sidebar.button("🧹 Ejecutar Limpieza y Auditoría"):
+if st.sidebar.button("🧹 Ejecutar Limpieza"):
 
     if not all([inv_file, tx_file, fb_file]):
         st.error("Debes cargar los tres archivos.")
         st.stop()
 
-    # ==================================================
-    # INGESTA
-    # ==================================================
+    # ---------------- Ingesta ----------------
     df_inv_raw = pd.read_csv(inv_file, dtype=str)
     df_tx_raw  = pd.read_csv(tx_file, dtype=str)
     df_fb_raw  = pd.read_csv(fb_file, dtype=str)
 
-    # ==================================================
-    # LIMPIEZA INVENTARIO
-    # ==================================================
+    # ---------------- Inventario ----------------
     df_inv = df_inv_raw.copy()
     df_inv["SKU_ID"] = df_inv["SKU_ID"].str.strip().str.upper()
     df_inv["Categoria"] = df_inv["Categoria"].apply(norm)
@@ -93,18 +88,22 @@ if st.sidebar.button("🧹 Ejecutar Limpieza y Auditoría"):
     df_inv["stock_negativo"] = df_inv["Stock_Actual"] < 0
 
     df_inv["Costo_Unitario_USD"] = df_inv["Costo_Unitario_USD"].replace(0, np.nan)
-    med_cat = df_inv.groupby("Categoria")["Costo_Unitario_USD"].transform("median")
-    df_inv["Costo_Unitario_Limpio"] = df_inv["Costo_Unitario_USD"].fillna(med_cat).fillna(df_inv["Costo_Unitario_USD"].median())
+    df_inv["Costo_Unitario_Limpio"] = (
+        df_inv["Costo_Unitario_USD"]
+        .fillna(df_inv.groupby("Categoria")["Costo_Unitario_USD"].transform("median"))
+        .fillna(df_inv["Costo_Unitario_USD"].median())
+    )
 
-    df_inv["Lead_Time_Dias"] = df_inv["Lead_Time_Dias"].replace(0, np.nan)
-    med_bod = df_inv.groupby("Bodega_Origen")["Lead_Time_Dias"].transform("median")
-    df_inv["Lead_Time_Limpio"] = df_inv["Lead_Time_Dias"].fillna(med_bod).fillna(df_inv["Lead_Time_Dias"].median())
+    df_inv["Lead_Time_Limpio"] = (
+        df_inv["Lead_Time_Dias"]
+        .replace(0, np.nan)
+        .fillna(df_inv.groupby("Bodega_Origen")["Lead_Time_Dias"].transform("median"))
+        .fillna(df_inv["Lead_Time_Dias"].median())
+    )
 
     df_inv = df_inv.sort_values("Ultima_Revision").drop_duplicates("SKU_ID", keep="last")
 
-    # ==================================================
-    # LIMPIEZA TRANSACCIONES
-    # ==================================================
+    # ---------------- Transacciones ----------------
     df_tx = df_tx_raw.copy()
     df_tx["SKU_ID"] = df_tx["SKU_ID"].str.strip().str.upper()
     df_tx["Ciudad_Destino"] = df_tx["Ciudad_Destino"].apply(norm)
@@ -118,9 +117,7 @@ if st.sidebar.button("🧹 Ejecutar Limpieza y Auditoría"):
     ciudades = {"med":"Medellín","medellin":"Medellín","bog":"Bogotá","bogota":"Bogotá"}
     df_tx["Ciudad_Destino_Limpia"] = df_tx["Ciudad_Destino"].map(ciudades).fillna(df_tx["Ciudad_Destino"].str.title())
 
-    # ==================================================
-    # LIMPIEZA FEEDBACK
-    # ==================================================
+    # ---------------- Feedback ----------------
     df_fb = df_fb_raw.drop_duplicates().copy()
     df_fb["Edad_Cliente"] = pd.to_numeric(df_fb["Edad_Cliente"], errors="coerce")
     df_fb.loc[(df_fb["Edad_Cliente"] < 0) | (df_fb["Edad_Cliente"] > 100), "Edad_Cliente"] = np.nan
@@ -137,9 +134,7 @@ if st.sidebar.button("🧹 Ejecutar Limpieza y Auditoría"):
     df_fb["Comentario_Texto"] = df_fb["Comentario_Texto"].replace("---", np.nan)
     df_fb["NPS_Grupo"] = df_fb["Satisfaccion_NPS"].apply(nps_grupo)
 
-    # ==================================================
-    # AUDITORÍA
-    # ==================================================
+    # ---------------- Auditoría ----------------
     st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
     st.session_state["rep_tx"]  = health_report(df_tx_raw, df_tx)
     st.session_state["rep_fb"]  = health_report(df_fb_raw, df_fb)
@@ -148,9 +143,9 @@ if st.sidebar.button("🧹 Ejecutar Limpieza y Auditoría"):
     st.session_state["df_tx"]  = df_tx
     st.session_state["df_fb"]  = df_fb
 
-# ==================================================
-# VALIDACIÓN
-# ==================================================
+# --------------------------------------------------
+# Validación
+# --------------------------------------------------
 if "df_inv" not in st.session_state:
     st.info("Carga los archivos y ejecuta la limpieza.")
     st.stop()
@@ -159,33 +154,19 @@ df_inv = st.session_state["df_inv"]
 df_tx  = st.session_state["df_tx"]
 df_fb  = st.session_state["df_fb"]
 
-# ==================================================
-# SECCIÓN 1 – AUDITORÍA Y TRANSPARENCIA
-# ==================================================
-st.header("1️⃣ Auditoría de Calidad y Transparencia")
+# --------------------------------------------------
+# Auditoría visual
+# --------------------------------------------------
+st.subheader("Auditoría de Calidad")
 
-for nombre, rep in zip(
-    ["Inventario","Transacciones","Feedback"],
-    [st.session_state["rep_inv"], st.session_state["rep_tx"], st.session_state["rep_fb"]]
-):
-    col1, col2, col3 = st.columns(3)
-    col1.metric(f"{nombre} – Health Score", rep["health_score"])
-    col2.metric("Duplicados Eliminados", rep["duplicados"])
-    col3.metric("Outliers Detectados", rep["outliers"])
+col1, col2, col3 = st.columns(3)
+col1.metric("Health Inventario", st.session_state["rep_inv"]["health_score"])
+col2.metric("Health Transacciones", st.session_state["rep_tx"]["health_score"])
+col3.metric("Health Feedback", st.session_state["rep_fb"]["health_score"])
 
-st.markdown("""
-**Decisión Ética:**  
-Se eliminaron duplicados exactos.  
-Se imputaron valores faltantes usando **mediana**, debido a distribuciones sesgadas
-y presencia de valores extremos.  
-Los outliers se conservaron cuando representaban eventos operativos reales.
-""")
-
-# ==================================================
-# SECCIÓN 2 – INTEGRACIÓN
-# ==================================================
-st.header("2️⃣ Integración – Single Source of Truth")
-
+# --------------------------------------------------
+# Integración
+# --------------------------------------------------
 df_master = (
     df_tx
     .merge(df_inv, on="SKU_ID", how="left", indicator=True)
@@ -193,75 +174,31 @@ df_master = (
 )
 
 df_master["sku_fantasma"] = df_master["_merge"] == "left_only"
-
 df_master["Ingreso"] = df_master["Cantidad_Vendida"] * df_master["Precio_Venta_Final"]
-df_master["Costo_Total"] = (
-    df_master["Cantidad_Vendida"] * df_master["Costo_Unitario_Limpio"] +
-    df_master["Costo_Envio"]
-)
+df_master["Costo_Total"] = df_master["Cantidad_Vendida"] * df_master["Costo_Unitario_Limpio"] + df_master["Costo_Envio"]
 df_master["Margen_Utilidad"] = df_master["Ingreso"] - df_master["Costo_Total"]
 df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Lead_Time_Limpio"]
 
-# ==================================================
-# SECCIÓN 3 – FUGA DE CAPITAL
-# ==================================================
-st.header("3️⃣ Fuga de Capital y Rentabilidad")
+# --------------------------------------------------
+# Storytelling visual
+# --------------------------------------------------
+st.subheader("Rentabilidad Operativa")
 
 fig, ax = plt.subplots()
 df_master["Margen_Utilidad"].dropna().plot(kind="hist", bins=40, ax=ax)
-ax.set_xlabel("Margen de Utilidad (USD)")
+ax.set_xlabel("Margen (USD)")
 ax.set_ylabel("Frecuencia")
 st.pyplot(fig)
 
-st.metric(
-    "SKUs con Margen Negativo",
-    df_master[df_master["Margen_Utilidad"] < 0]["SKU_ID"].nunique()
-)
+st.subheader("Impacto Logístico en Satisfacción")
 
-# ==================================================
-# SECCIÓN 4 – CRISIS LOGÍSTICA
-# ==================================================
-st.header("4️⃣ Crisis Logística y Cuellos de Botella")
+fig, ax = plt.subplots()
+ax.scatter(df_master["Tiempo_Entrega_Limpio"], df_master["Satisfaccion_NPS"], alpha=0.3)
+ax.set_xlabel("Tiempo de Entrega (días)")
+ax.set_ylabel("NPS")
+st.pyplot(fig)
 
-log_corr = (
-    df_master
-    .dropna(subset=["Tiempo_Entrega_Limpio","Satisfaccion_NPS"])
-    .groupby("Ciudad_Destino_Limpia")[["Tiempo_Entrega_Limpio","Satisfaccion_NPS"]]
-    .corr()
-)
-
-st.dataframe(log_corr)
-
-# ==================================================
-# SECCIÓN 5 – VENTA INVISIBLE
-# ==================================================
-st.header("5️⃣ Análisis de la Venta Invisible")
-
-ingreso_riesgo = (
-    df_master[df_master["sku_fantasma"]]["Ingreso"].sum() /
-    df_master["Ingreso"].sum() * 100
-)
-
-st.metric("Ingreso Total en Riesgo (%)", round(ingreso_riesgo, 2))
-
-# ==================================================
-# SECCIÓN 6 – FIDELIDAD VS STOCK
-# ==================================================
-st.header("6️⃣ Fidelidad vs Disponibilidad")
-
-paradoja = (
-    df_master
-    .groupby("Categoria")[["Stock_Actual","Satisfaccion_NPS"]]
-    .mean()
-    .sort_values("Stock_Actual", ascending=False)
-)
-
-st.dataframe(paradoja)
-
-# ==================================================
-# SECCIÓN 7 – RIESGO OPERATIVO
-# ==================================================
-st.header("7️⃣ Riesgo Operativo por Bodega")
+st.subheader("Riesgo Operativo por Bodega")
 
 riesgo = (
     df_master
@@ -274,7 +211,4 @@ riesgo = (
 fig, ax = plt.subplots()
 riesgo.plot(kind="bar", ax=ax)
 ax.set_ylabel("Tasa de Tickets")
-ax.set_xlabel("Bodega")
 st.pyplot(fig)
-
-st.caption("Bodegas con mayor tasa de tickets operan con menor confiabilidad operativa.")
