@@ -238,8 +238,8 @@ fig.update_layout(
     legend_title_text=color_var.replace("_", " ")
 )
 
-st.plotly_chart(fig, use_container_width=True)
-st.plotly_chart(fig, use_container_width=True)
+# ... después de fig.update_layout()
+st.plotly_chart(fig, use_container_width=True, key="grafico_dispersion_operativo")
 
 # --- AQUÍ ESTÁ LA CORRECCIÓN ---
 # Calculamos la correlación de Pearson entre las dos variables seleccionadas
@@ -284,7 +284,8 @@ fig.update_layout(
     showlegend=False
 )
 
-st.plotly_chart(fig, use_container_width=True)
+# ... busca el px.box para el Margen_Utilidad
+st.plotly_chart(fig, use_container_width=True, key="grafico_cajas_rentabilidad")
 
 # --------------------------------------------------
 # Rentabilidad
