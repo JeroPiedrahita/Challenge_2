@@ -247,8 +247,12 @@ st.markdown(
 
     La correlación entre **{x_var_label}** y **{y_var_label}** es de  
     **{corr:.2f}**, lo que sugiere una relación relevante.
+
+    Este resultado ayuda a entender cómo una variable
+    puede influir sobre la otra dentro del proceso operativo.
     """
 )
+
 
 st.subheader("💡 ¿Dónde se gana y dónde se pierde dinero?")
 
