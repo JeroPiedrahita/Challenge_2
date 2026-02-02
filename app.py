@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import unicodedata
+import plotly.express as px
 from data_processing import (
     clean_inventario,
     clean_transacciones,
@@ -179,6 +180,96 @@ col4.metric(
     "Ventas con SKU Fantasma (%)",
     f"{df_f['sku_fantasma'].mean() * 100:.1f}%"
 )
+
+# --------------------------------------------------
+# Análisis interactivo de correlaciones
+# --------------------------------------------------
+st.subheader("🔍 Relación entre Variables Operativas y de Negocio")
+
+st.markdown(
+    """
+    Explora cómo las variables logísticas y comerciales se relacionan entre sí.
+    Cambia los ejes para descubrir patrones ocultos y cuellos de botella.
+    """
+)
+
+variables_numericas = {
+    "Tiempo de Entrega": "Tiempo_Entrega_Limpio",
+    "Brecha de Entrega": "Brecha_Entrega",
+    "Margen de Utilidad": "Margen_Utilidad",
+    "Ingreso por Venta": "Ingreso",
+    "Satisfacción (NPS)": "Satisfaccion_NPS",
+    "Rating Logística": "Rating_Logistica",
+    "Rating Producto": "Rating_Producto"
+}
+
+colx, coly, colc = st.columns(3)
+
+x_var_label = colx.selectbox("Eje X", variables_numericas.keys(), index=0)
+y_var_label = coly.selectbox("Eje Y", variables_numericas.keys(), index=4)
+
+color_var = colc.selectbox(
+    "Color por",
+    ["Canal_Venta", "Bodega_Origen", "Estado_Envio"],
+    index=0
+)
+
+x_var = variables_numericas[x_var_label]
+y_var = variables_numericas[y_var_label]
+
+fig = px.scatter(
+    df_f,
+    x=x_var,
+    y=y_var,
+    color=color_var,
+    hover_data=[
+        "SKU_ID",
+        "Ciudad_Destino_Limpia",
+        "Canal_Venta"
+    ],
+    opacity=0.6,
+    trendline="ols",
+    title=f"{y_var_label} vs {x_var_label}"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    height=500,
+    legend_title_text=color_var.replace("_", " ")
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+
+st.markdown(
+    f"""
+    **📌 Interpretación rápida:**
+
+    La correlación entre **{x_var_label}** y **{y_var_label}** es de  
+    **{corr:.2f}**, lo que sugiere una relación 
+    {"fuerte" if abs(corr) > 0.6 else "moderada" if abs(corr) > 0.3 else "débil"}.
+
+    Esto puede indicar oportunidades de optimización operativa o riesgos
+    que impactan directamente la experiencia del cliente.
+    """
+)
+
+st.subheader("💡 ¿Dónde se gana y dónde se pierde dinero?")
+
+fig = px.box(
+    df_f,
+    x="Bodega_Origen",
+    y="Margen_Utilidad",
+    color="Bodega_Origen",
+    title="Distribución de Margen por Bodega"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    showlegend=False
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 # --------------------------------------------------
 # Rentabilidad
