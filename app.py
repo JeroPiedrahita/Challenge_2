@@ -328,26 +328,43 @@ riesgo = (
     .assign(ticket_bin=df_f["Ticket_Soporte_Abierto"] == "Sí")
     .groupby("Bodega_Origen")["ticket_bin"]
     .mean()
-    .sort_values(ascending=True)
+    .sort_values(ascending=False)
 )
 
-fig, ax = plt.subplots(figsize=(8, 5))
+fig, ax = plt.subplots(figsize=(7, 4))
 
-riesgo.plot(
-    kind="barh",
-    ax=ax
+ax.bar(
+    riesgo.index,
+    riesgo.values
 )
 
-ax.set_title("📍 Riesgo Operativo por Bodega", fontsize=13, weight="bold")
-ax.set_xlabel("Tasa de Tickets de Soporte")
-ax.set_ylabel("Bodega de Origen")
+ax.set_title("Riesgo Operativo por Bodega", fontsize=12)
+ax.set_ylabel("Tasa de Tickets")
+ax.set_xlabel("Bodega de Origen")
 
-# Línea de referencia
-ax.axvline(riesgo.mean(), linestyle="--")
+# Línea de referencia: promedio global
+ax.axhline(
+    riesgo.mean(),
+    linestyle="--"
+)
 
-# Etiquetas de porcentaje
-for i, v in enumerate(riesgo):
-    ax.text(v + 0.01, i, f"{v:.1%}", va="center")
+# Rotación suave como en dashboards
+ax.set_xticklabels(
+    riesgo.index,
+    rotation=30,
+    ha="right"
+)
+
+# Etiquetas numéricas discretas
+for i, v in enumerate(riesgo.values):
+    ax.text(
+        i,
+        v,
+        f"{v:.1%}",
+        ha="center",
+        va="bottom",
+        fontsize=9
+    )
 
 plt.tight_layout()
 st.pyplot(fig)
