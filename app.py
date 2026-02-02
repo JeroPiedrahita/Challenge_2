@@ -137,6 +137,17 @@ df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Le
 
 st.sidebar.header("🎛️ Filtros")
 
+
+fecha_min = df_master["Fecha_Venta"].min()
+fecha_max = df_master["Fecha_Venta"].max()
+
+rango_fechas = st.sidebar.date_input(
+    "Rango de fechas",
+    value=(fecha_min, fecha_max),
+    min_value=fecha_min,
+    max_value=fecha_max
+)
+
 # Filtros básicos
 bodegas = st.sidebar.multiselect(
     "Bodega de Origen",
@@ -156,231 +167,309 @@ canales = st.sidebar.multiselect(
     default=sorted(df_master["Canal_Venta"].dropna().unique())
 )
 
+refrescar = st.sidebar.button("🔄 Refrescar Análisis")
+
 # Aplicar filtros
 df_f = df_master[
     (df_master["Bodega_Origen"].isin(bodegas)) &
-    (df_master["Ciudad_Destino_Limpia"].isin(ciudades)) &
-    (df_master["Canal_Venta"].isin(canales))
+    (df_master["Categoria"].isin(categorias)) &
+    (df_master["Fecha_Venta"].between(
+        pd.to_datetime(rango_fechas[0]),
+        pd.to_datetime(rango_fechas[1])
+    ))
 ]
 
-# --------------------------------------------------
-# KPIs Ejecutivos
-# --------------------------------------------------
-st.subheader("📊 KPIs Operacionales")
 
-col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Ingresos Totales (USD)", f"${df_f['Ingreso'].sum():,.0f}")
-col2.metric("Margen Total (USD)", f"${df_f['Margen_Utilidad'].sum():,.0f}")
-
-margen_pct = (df_f["Margen_Utilidad"].sum() / df_f["Ingreso"].sum()) * 100
-col3.metric("Margen Total (%)", f"{margen_pct:.1f}%")
-
-col4.metric(
-    "Ventas con SKU Fantasma (%)",
-    f"{df_f['sku_fantasma'].mean() * 100:.1f}%"
-)
-
-# --------------------------------------------------
-# Análisis interactivo de correlaciones
-# --------------------------------------------------
-st.subheader("🔍 Relación entre Variables Operativas y de Negocio")
-
-st.markdown(
-    """
-    Explora cómo las variables logísticas y comerciales se relacionan entre sí.
-    Cambia los ejes para descubrir patrones ocultos y cuellos de botella.
-    """
-)
-
-variables_numericas = {
-    "Tiempo de Entrega": "Tiempo_Entrega_Limpio",
-    "Brecha de Entrega": "Brecha_Entrega",
-    "Margen de Utilidad": "Margen_Utilidad",
-    "Ingreso por Venta": "Ingreso",
-    "Satisfacción (NPS)": "Satisfaccion_NPS",
-    "Rating Logística": "Rating_Logistica",
-    "Rating Producto": "Rating_Producto"
-}
-
-colx, coly, colc = st.columns(3)
-
-x_var_label = colx.selectbox("Eje X", variables_numericas.keys(), index=0)
-y_var_label = coly.selectbox("Eje Y", variables_numericas.keys(), index=4)
-
-color_var = colc.selectbox(
-    "Color por",
-    ["Canal_Venta", "Bodega_Origen", "Estado_Envio"],
-    index=0
-)
-
-x_var = variables_numericas[x_var_label]
-y_var = variables_numericas[y_var_label]
-
-fig = px.scatter(
-    df_f,
-    x=x_var,
-    y=y_var,
-    color=color_var,
-    hover_data=[
-        "SKU_ID",
-        "Ciudad_Destino_Limpia",
-        "Canal_Venta"
-    ],
-    opacity=0.6,
-    trendline="ols",
-    title=f"{y_var_label} vs {x_var_label}"
-)
-
-fig.update_layout(
-    template="plotly_white",
-    height=500,
-    legend_title_text=color_var.replace("_", " ")
-)
-
-# ... después de fig.update_layout()
-st.plotly_chart(fig, use_container_width=True, key="grafico_dispersion_operativo")
-
-# --- AQUÍ ESTÁ LA CORRECCIÓN ---
-# Calculamos la correlación de Pearson entre las dos variables seleccionadas
-# Usamos .dropna() para que no de error si hay valores nulos
-# 1. Calculamos la correlación
-corr = df_f[x_var].corr(df_f[y_var])
-
-# 2. Definimos la etiqueta de intensidad antes del markdown
-if abs(corr) > 0.7:
-    intensidad = "fuerte"
-elif abs(corr) > 0.3:
-    intensidad = "moderada"
-else:
-    intensidad = "débil"
-
-# 3. Mostramos el markdown limpio
-st.markdown(
-    f"""
-    **📌 Interpretación rápida**
-
-    La correlación entre **{x_var_label}** y **{y_var_label}** es de  
-    **{corr:.2f}**, lo que sugiere una relación **{intensidad}**.
-
-    Esto permite analizar cómo las variables operativas
-    influyen entre sí dentro del negocio.
-    """
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["🧪 Auditoría", "⚙️ Operaciones", "👥 Cliente", "🤖 Insights IA"]
 )
 
 
-st.subheader("💡 ¿Dónde se gana y dónde se pierde dinero?")
+#-----------------------------------------------------
+#  Auditoria
+#----------------------------------------------------
 
-fig = px.box(
-    df_f,
-    x="Bodega_Origen",
-    y="Margen_Utilidad",
-    color="Bodega_Origen",
-    title="Distribución de Margen por Bodega"
-)
-
-fig.update_layout(
-    template="plotly_white",
-    showlegend=False
-)
-
-# ... busca el px.box para el Margen_Utilidad
-st.plotly_chart(fig, use_container_width=True, key="grafico_cajas_rentabilidad")
-
-# --------------------------------------------------
-# Rentabilidad
-# --------------------------------------------------
-st.subheader("💰 Rentabilidad por Bodega")
-
-margen_bodega_df = (
-    df_f
-    .groupby("Bodega_Origen", as_index=False)["Margen_Utilidad"]
-    .mean()
-    .sort_values("Margen_Utilidad")
-)
-
-fig = px.bar(
-    margen_bodega_df,
-    y="Bodega_Origen",
-    x="Margen_Utilidad",
-    color="Bodega_Origen",
-    orientation="h",
-    title="Margen Promedio por Bodega (USD)"
-)
-
-fig.update_layout(
-    template="plotly_white",
-    showlegend=False,
-    xaxis_title="Margen promedio (USD)",
-    yaxis_title="Bodega de Origen"
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True,
-    key="grafico_rentabilidad_bodega"
-)
-# --------------------------------------------------
-# Logística vs Satisfacción
-# --------------------------------------------------
-st.subheader("🚚 Logística y Satisfacción")
-
-fig = px.scatter(
-    df_f,
-    x="Tiempo_Entrega_Limpio",
-    y="Satisfaccion_NPS",
-    color="Bodega_Origen",
-    opacity=0.4,
-    title="Relación entre Tiempo de Entrega y Satisfacción (NPS)",
-    labels={
-        "Tiempo_Entrega_Limpio": "Tiempo de Entrega (días)",
-        "Satisfaccion_NPS": "NPS"
+def resumen_limpieza(df_raw, df_clean):
+    return {
+        "Filas originales": len(df_raw),
+        "Filas finales": len(df_clean),
+        "Duplicados eliminados": len(df_raw) - len(df_raw.drop_duplicates()),
+        "Salud de datos (%)": health_report(df_raw, df_clean)["health_score"]
     }
-)
 
-fig.update_layout(
-    template="plotly_white"
-)
+with tab1:
+    st.subheader("Transparencia del Proceso de Limpieza")
 
-st.plotly_chart(
-    fig,
-    use_container_width=True,
-    key="grafico_logistica_satisfaccion"
-)
+    col1, col2, col3 = st.columns(3)
 
-# --------------------------------------------------
-# Riesgo Operativo
-# --------------------------------------------------
-# ---------------- Riesgo Operativo (preparación datos) ----------------
-riesgo_df = (
-    df_f
-    .assign(ticket_bin=df_f["Ticket_Soporte_Abierto"] == "Sí")
-    .groupby("Bodega_Origen", as_index=False)["ticket_bin"]
-    .mean()
-    .rename(columns={"ticket_bin": "Tasa_Tickets"})
-)
-st.subheader("⚠️ Riesgo Operativo por Bodega")
+    col1.metric("Inventario – Salud",
+                resumen_limpieza(df_inv_raw, df_inv)["Salud de datos (%)"])
+    col2.metric("Transacciones – Salud",
+                resumen_limpieza(df_tx_raw, df_tx)["Salud de datos (%)"])
+    col3.metric("Feedback – Salud",
+                resumen_limpieza(df_fb_raw, df_fb)["Salud de datos (%)"])
 
-fig = px.bar(
-    riesgo_df,
-    x="Bodega_Origen",
-    y="Tasa_Tickets",
-    color="Bodega_Origen",
-    title="Riesgo Operativo por Bodega"
-)
+    st.markdown("**Comparación Antes vs Después (ejemplo)**")
+    st.dataframe(df_tx_raw.head())
+    st.dataframe(df_tx.head())
 
-fig.update_layout(
-    template="plotly_white",
-    showlegend=False,
-    yaxis_tickformat=".0%",
-    yaxis_title="Tasa de Tickets de Soporte",
-    xaxis_title="Bodega de Origen"
-)
+with tab2:
 
-st.plotly_chart(
-    fig,
-    use_container_width=True,
-    key="grafico_riesgo_bodega"
-)
+    # --------------------------------------------------
+    # KPIs Ejecutivos
+    # --------------------------------------------------
+    st.subheader("📊 KPIs Operacionales")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    col1.metric("Ingresos Totales (USD)", f"${df_f['Ingreso'].sum():,.0f}")
+    col2.metric("Margen Total (USD)", f"${df_f['Margen_Utilidad'].sum():,.0f}")
+    
+    margen_pct = (df_f["Margen_Utilidad"].sum() / df_f["Ingreso"].sum()) * 100
+    col3.metric("Margen Total (%)", f"{margen_pct:.1f}%")
+    
+    col4.metric(
+        "Ventas con SKU Fantasma (%)",
+        f"{df_f['sku_fantasma'].mean() * 100:.1f}%"
+    )
+    
+    # --------------------------------------------------
+    # Análisis interactivo de correlaciones
+    # --------------------------------------------------
+    st.subheader("🔍 Relación entre Variables Operativas y de Negocio")
+    
+    st.markdown(
+        """
+        Explora cómo las variables logísticas y comerciales se relacionan entre sí.
+        Cambia los ejes para descubrir patrones ocultos y cuellos de botella.
+        """
+    )
+    
+    variables_numericas = {
+        "Tiempo de Entrega": "Tiempo_Entrega_Limpio",
+        "Brecha de Entrega": "Brecha_Entrega",
+        "Margen de Utilidad": "Margen_Utilidad",
+        "Ingreso por Venta": "Ingreso",
+        "Satisfacción (NPS)": "Satisfaccion_NPS",
+        "Rating Logística": "Rating_Logistica",
+        "Rating Producto": "Rating_Producto"
+    }
+    
+    colx, coly, colc = st.columns(3)
+    
+    x_var_label = colx.selectbox("Eje X", variables_numericas.keys(), index=0)
+    y_var_label = coly.selectbox("Eje Y", variables_numericas.keys(), index=4)
+    
+    color_var = colc.selectbox(
+        "Color por",
+        ["Canal_Venta", "Bodega_Origen", "Estado_Envio"],
+        index=0
+    )
+    
+    x_var = variables_numericas[x_var_label]
+    y_var = variables_numericas[y_var_label]
+    
+    fig = px.scatter(
+        df_f,
+        x=x_var,
+        y=y_var,
+        color=color_var,
+        hover_data=[
+            "SKU_ID",
+            "Ciudad_Destino_Limpia",
+            "Canal_Venta"
+        ],
+        opacity=0.6,
+        trendline="ols",
+        title=f"{y_var_label} vs {x_var_label}"
+    )
+    
+    fig.update_layout(
+        template="plotly_white",
+        height=500,
+        legend_title_text=color_var.replace("_", " ")
+    )
+    
+    # ... después de fig.update_layout()
+    st.plotly_chart(fig, use_container_width=True, key="grafico_dispersion_operativo")
+    
+    # --- AQUÍ ESTÁ LA CORRECCIÓN ---
+    # Calculamos la correlación de Pearson entre las dos variables seleccionadas
+    # Usamos .dropna() para que no de error si hay valores nulos
+    # 1. Calculamos la correlación
+    corr = df_f[x_var].corr(df_f[y_var])
+    
+    # 2. Definimos la etiqueta de intensidad antes del markdown
+    if abs(corr) > 0.7:
+        intensidad = "fuerte"
+    elif abs(corr) > 0.3:
+        intensidad = "moderada"
+    else:
+        intensidad = "débil"
+    
+    # 3. Mostramos el markdown limpio
+    st.markdown(
+        f"""
+        **📌 Interpretación rápida**
+    
+        La correlación entre **{x_var_label}** y **{y_var_label}** es de  
+        **{corr:.2f}**, lo que sugiere una relación **{intensidad}**.
+    
+        Esto permite analizar cómo las variables operativas
+        influyen entre sí dentro del negocio.
+        """
+    )
+    
+    
+    st.subheader("💡 ¿Dónde se gana y dónde se pierde dinero?")
+    
+    fig = px.box(
+        df_f,
+        x="Bodega_Origen",
+        y="Margen_Utilidad",
+        color="Bodega_Origen",
+        title="Distribución de Margen por Bodega"
+    )
+    
+    fig.update_layout(
+        template="plotly_white",
+        showlegend=False
+    )
+    
+    # ... busca el px.box para el Margen_Utilidad
+    st.plotly_chart(fig, use_container_width=True, key="grafico_cajas_rentabilidad")
+    
+    # --------------------------------------------------
+    # Rentabilidad
+    # --------------------------------------------------
+    st.subheader("💰 Rentabilidad por Bodega")
+    
+    margen_bodega_df = (
+        df_f
+        .groupby("Bodega_Origen", as_index=False)["Margen_Utilidad"]
+        .mean()
+        .sort_values("Margen_Utilidad")
+    )
+    
+    fig = px.bar(
+        margen_bodega_df,
+        y="Bodega_Origen",
+        x="Margen_Utilidad",
+        color="Bodega_Origen",
+        orientation="h",
+        title="Margen Promedio por Bodega (USD)"
+    )
+    
+    fig.update_layout(
+        template="plotly_white",
+        showlegend=False,
+        xaxis_title="Margen promedio (USD)",
+        yaxis_title="Bodega de Origen"
+    )
+    
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        key="grafico_rentabilidad_bodega"
+    )
+    # --------------------------------------------------
+    # Logística vs Satisfacción
+    # --------------------------------------------------
+    st.subheader("🚚 Logística y Satisfacción")
+    
+    fig = px.scatter(
+        df_f,
+        x="Tiempo_Entrega_Limpio",
+        y="Satisfaccion_NPS",
+        color="Bodega_Origen",
+        opacity=0.4,
+        title="Relación entre Tiempo de Entrega y Satisfacción (NPS)",
+        labels={
+            "Tiempo_Entrega_Limpio": "Tiempo de Entrega (días)",
+            "Satisfaccion_NPS": "NPS"
+        }
+    )
+    
+    fig.update_layout(
+        template="plotly_white"
+    )
+    
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        key="grafico_logistica_satisfaccion"
+    )
+    
+    # --------------------------------------------------
+    # Riesgo Operativo
+    # --------------------------------------------------
+    # ---------------- Riesgo Operativo (preparación datos) ----------------
+    riesgo_df = (
+        df_f
+        .assign(ticket_bin=df_f["Ticket_Soporte_Abierto"] == "Sí")
+        .groupby("Bodega_Origen", as_index=False)["ticket_bin"]
+        .mean()
+        .rename(columns={"ticket_bin": "Tasa_Tickets"})
+    )
+    st.subheader("⚠️ Riesgo Operativo por Bodega")
+    
+    fig = px.bar(
+        riesgo_df,
+        x="Bodega_Origen",
+        y="Tasa_Tickets",
+        color="Bodega_Origen",
+        title="Riesgo Operativo por Bodega"
+    )
+    
+    fig.update_layout(
+        template="plotly_white",
+        showlegend=False,
+        yaxis_tickformat=".0%",
+        yaxis_title="Tasa de Tickets de Soporte",
+        xaxis_title="Bodega de Origen"
+    )
+    
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        key="grafico_riesgo_bodega"
+    )
 
+
+with tab3:
+    st.subheader("Satisfacción del Cliente")
+
+    fig = px.box(
+        df_f,
+        x="Bodega_Origen",
+        y="Satisfaccion_NPS",
+        color="Bodega_Origen",
+        title="Distribución de NPS por Bodega"
+    )
+
+    fig.update_layout(template="plotly_white", showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+with tab4:
+    st.subheader("🤖 Insights Generados por IA")
+
+    if st.button("🧠 Analizar con IA"):
+        resumen = {
+            "filas": len(df_f),
+            "ingresos": df_f["Ingreso"].sum(),
+            "margen": df_f["Margen_Utilidad"].sum(),
+            "riesgo_promedio": (df_f["Ticket_Soporte_Abierto"] == "Sí").mean()
+        }
+
+        prompt = f"""
+        Analiza el siguiente resumen operativo y genera 3 insights claros
+        y accionables para un gerente logístico:
+
+        {resumen}
+        """
+
+        # aquí llamas a Groq / Llama-3
+        st.info("🔍 Analizando datos filtrados…")
 
