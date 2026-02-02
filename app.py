@@ -8,7 +8,8 @@ import plotly.express as px
 from data_processing import (
     clean_inventario,
     clean_transacciones,
-    clean_feedback
+    clean_feedback,
+    resumen_limpieza
 )
 
 
@@ -78,26 +79,29 @@ if st.sidebar.button("🧹 Ejecutar Limpieza"):
         st.error("Debes cargar los tres archivos.")
         st.stop()
 
-    # ---------------- Ingesta ----------------
-    df_inv_raw = pd.read_csv(inv_file, dtype=str)
-    df_tx_raw  = pd.read_csv(tx_file, dtype=str)
-    df_fb_raw  = pd.read_csv(fb_file, dtype=str)
+    # ---------------- Ingesta RAW ----------------
+    df_inv_raw = pd.read_csv(inv_file)
+    df_tx_raw  = pd.read_csv(tx_file)
+    df_fb_raw  = pd.read_csv(fb_file)
 
     # ---------------- Limpieza ----------------
     df_inv = clean_inventario(df_inv_raw)
     df_tx  = clean_transacciones(df_tx_raw)
     df_fb  = clean_feedback(df_fb_raw)
 
-    # ---------------- Auditoría ----------------
-    st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
-    st.session_state["rep_tx"]  = health_report(df_tx_raw, df_tx)
-    st.session_state["rep_fb"]  = health_report(df_fb_raw, df_fb)
+    # ---------------- Reportes de limpieza ----------------
+    st.session_state["rep_inv"] = resumen_limpieza(df_inv_raw, df_inv)
+    st.session_state["rep_tx"]  = resumen_limpieza(df_tx_raw, df_tx)
+    st.session_state["rep_fb"]  = resumen_limpieza(df_fb_raw, df_fb)
 
-    # ---------------- Guardar ----------------
+    # ---------------- Guardar dataframes ----------------
+    st.session_state["df_inv_raw"] = df_inv_raw
+    st.session_state["df_tx_raw"]  = df_tx_raw
+    st.session_state["df_fb_raw"]  = df_fb_raw
+
     st.session_state["df_inv"] = df_inv
     st.session_state["df_tx"]  = df_tx
     st.session_state["df_fb"]  = df_fb
-
 
 # --------------------------------------------------
 # Validación
@@ -110,6 +114,16 @@ df_inv = st.session_state["df_inv"]
 df_tx  = st.session_state["df_tx"]
 df_fb  = st.session_state["df_fb"]
 
+# --------------------------------------------------
+# Recuperar datos desde session_state
+# --------------------------------------------------
+df_inv_raw = st.session_state["df_inv_raw"]
+df_tx_raw  = st.session_state["df_tx_raw"]
+df_fb_raw  = st.session_state["df_fb_raw"]
+
+df_inv = st.session_state["df_inv"]
+df_tx  = st.session_state["df_tx"]
+df_fb  = st.session_state["df_fb"]
 # --------------------------------------------------
 # Auditoría visual
 # --------------------------------------------------
@@ -197,22 +211,50 @@ def resumen_limpieza(df_raw, df_clean):
         "Salud de datos (%)": health_report(df_raw, df_clean)["health_score"]
     }
 
-with tab1:
-    st.subheader("Transparencia del Proceso de Limpieza")
+with tab_auditoria:
 
-    col1, col2, col3 = st.columns(3)
+    st.subheader("🔎 Transparencia de Limpieza – Inventario")
 
-    col1.metric("Inventario – Salud",
-                resumen_limpieza(df_inv_raw, df_inv)["Salud de datos (%)"])
-    col2.metric("Transacciones – Salud",
-                resumen_limpieza(df_tx_raw, df_tx)["Salud de datos (%)"])
-    col3.metric("Feedback – Salud",
-                resumen_limpieza(df_fb_raw, df_fb)["Salud de datos (%)"])
+    resumen = resumen_limpieza(df_inv_raw, df_inv)
 
-    st.markdown("**Comparación Antes vs Después (ejemplo)**")
-    st.dataframe(df_tx_raw.head())
-    st.dataframe(df_tx.head())
+    col1, col2, col3, col4, col5 = st.columns(5)
 
+    col1.metric("Filas Iniciales", resumen["Filas iniciales"])
+    col2.metric("Filas Finales", resumen["Filas finales"])
+    col3.metric("Eliminadas", resumen["Filas eliminadas"])
+    col4.metric("Duplicados", resumen["Duplicados"])
+    col5.metric(
+        "Salud de Datos (%)",
+        f'{resumen["Salud de datos (%)"]}%'
+    )
+
+    st.divider()
+st.subheader("📂 Vista Antes vs Después")
+
+dataset = st.selectbox(
+    "Selecciona el dataset",
+    ["Inventario", "Transacciones", "Feedback"]
+)
+
+if dataset == "Inventario":
+    df_raw = st.session_state["df_inv_raw"]
+    df_clean = df_inv
+elif dataset == "Transacciones":
+    df_raw = st.session_state["df_tx_raw"]
+    df_clean = df_tx
+else:
+    df_raw = st.session_state["df_fb_raw"]
+    df_clean = df_fb
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### ❌ Antes de la Limpieza")
+    st.dataframe(df_raw.head(100), use_container_width=True)
+
+with col2:
+    st.markdown("### ✅ Después de la Limpieza")
+    st.dataframe(df_clean.head(100), use_container_width=True)
 with tab2:
 
     # --------------------------------------------------
