@@ -323,21 +323,27 @@ st.pyplot(fig)
 # --------------------------------------------------
 st.subheader("⚠️ Riesgo Operativo por Bodega")
 
-fig = px.strip(
-    df_f,
+fig = px.bar(
+    riesgo_df,
     x="Bodega_Origen",
-    y=df_f["Ticket_Soporte_Abierto"] == "Sí",
+    y="Tasa_Tickets",
     color="Bodega_Origen",
-    title="Distribución de Tickets por Bodega"
+    title="Riesgo Operativo por Bodega"
 )
 
 fig.update_layout(
     template="plotly_white",
     showlegend=False,
-    yaxis_title="Ticket Abierto"
+    yaxis_tickformat=".0%",
+    yaxis_title="Tasa de Tickets de Soporte",
+    xaxis_title="Bodega de Origen"
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    key="grafico_riesgo_bodega"
+)
 
 
 
