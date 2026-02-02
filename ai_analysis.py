@@ -1,40 +1,38 @@
-import streamlit as st
 from groq import Groq
 
+def generar_insights_ia(df_filtrado, pregunta, api_key):
 
-def generar_insights_ia(df_f, pregunta):
+    if not api_key:
+        return "❌ No se proporcionó una API Key válida."
 
-    client = Groq(
-        api_key=st.secrets["GROQ_API_KEY"]
-    )
+    client = Groq(api_key=api_key)
 
     resumen = {
-        "filas": len(df_f),
-        "ingresos": float(df_f["Ingreso"].sum()),
-        "margen": float(df_f["Margen_Utilidad"].sum()),
-        "riesgo_promedio": float(
-            (df_f["Ticket_Soporte_Abierto"] == "Sí").mean()
+        "filas": len(df_filtrado),
+        "ingresos": round(df_filtrado["Ingreso"].sum(), 2),
+        "margen": round(df_filtrado["Margen_Utilidad"].sum(), 2),
+        "riesgo_promedio": round(
+            (df_filtrado["Ticket_Soporte_Abierto"] == "Sí").mean(), 2
         )
     }
 
     prompt = f"""
-    Eres un analista senior de operaciones logísticas.
+    Eres un analista senior de logística y negocio.
 
-    Pregunta del usuario:
-    {pregunta}
-
-    Resumen operativo:
+    Con base en el siguiente resumen de datos filtrados:
     {resumen}
 
-    Genera 3 insights claros y accionables.
+    Responde de forma clara y accionable a la siguiente pregunta:
+    {pregunta}
+
+    Da insights ejecutivos, no técnicos.
     """
 
     response = client.chat.completions.create(
         model="llama3-8b-8192",
         messages=[
             {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
+        ]
     )
 
     return response.choices[0].message.content
