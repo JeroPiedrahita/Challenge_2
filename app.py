@@ -351,6 +351,14 @@ st.plotly_chart(
 # --------------------------------------------------
 # Riesgo Operativo
 # --------------------------------------------------
+# ---------------- Riesgo Operativo (preparación datos) ----------------
+riesgo_df = (
+    df_f
+    .assign(ticket_bin=df_f["Ticket_Soporte_Abierto"] == "Sí")
+    .groupby("Bodega_Origen", as_index=False)["ticket_bin"]
+    .mean()
+    .rename(columns={"ticket_bin": "Tasa_Tickets"})
+)
 st.subheader("⚠️ Riesgo Operativo por Bodega")
 
 fig = px.bar(
