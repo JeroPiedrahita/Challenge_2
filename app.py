@@ -82,18 +82,21 @@ if st.sidebar.button("🧹 Ejecutar Limpieza"):
     df_tx_raw  = pd.read_csv(tx_file, dtype=str)
     df_fb_raw  = pd.read_csv(fb_file, dtype=str)
 
-df_inv = clean_inventario(df_inv_raw)
-df_tx  = clean_transacciones(df_tx_raw)
-df_fb  = clean_feedback(df_fb_raw)
+    # ---------------- Limpieza ----------------
+    df_inv = clean_inventario(df_inv_raw)
+    df_tx  = clean_transacciones(df_tx_raw)
+    df_fb  = clean_feedback(df_fb_raw)
 
     # ---------------- Auditoría ----------------
     st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
     st.session_state["rep_tx"]  = health_report(df_tx_raw, df_tx)
     st.session_state["rep_fb"]  = health_report(df_fb_raw, df_fb)
 
+    # ---------------- Guardar ----------------
     st.session_state["df_inv"] = df_inv
     st.session_state["df_tx"]  = df_tx
     st.session_state["df_fb"]  = df_fb
+
 
 # --------------------------------------------------
 # Validación
