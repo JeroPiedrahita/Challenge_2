@@ -8,6 +8,33 @@ def norm(x):
     x = str(x).strip().lower()
     return unicodedata.normalize("NFKD", x).encode("ascii","ignore").decode("utf-8")
 
+# -------------------------------------------
+#Resumen limpieza
+def resumen_limpieza(df_raw, df_clean):
+    filas_iniciales = len(df_raw)
+    filas_finales = len(df_clean)
+    filas_eliminadas = filas_iniciales - filas_finales
+
+    duplicados = df_raw.duplicated().sum()
+    pct_nulos = df_clean.isna().mean().mean() * 100
+
+    salud = max(
+        0,
+        100 - (
+            pct_nulos * 0.4 +
+            (duplicados / max(1, filas_iniciales)) * 100 * 0.3 +
+            (filas_eliminadas / max(1, filas_iniciales)) * 100 * 0.3
+        )
+    )
+
+    return {
+        "Filas iniciales": filas_iniciales,
+        "Filas finales": filas_finales,
+        "Filas eliminadas": filas_eliminadas,
+        "Duplicados": duplicados,
+        "Salud de datos (%)": round(salud, 1)
+    }
+
 # ---------------- Inventario ----------------
 def clean_inventario(df_raw):
     df = df_raw.copy()
