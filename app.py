@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from Data_prossesing import clean_inventario, clean_transacciones, clean_feedback, merge_datasets
+from data_processing import clean_inventario, clean_transacciones, clean_feedback, merge_datasets
 
 # CONFIGURACIÓN PROFESIONAL
 st.set_page_config(page_title="TechLogistics Global Intelligence", layout="wide")
