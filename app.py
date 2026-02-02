@@ -84,7 +84,7 @@ if st.sidebar.button("🧹 Ejecutar Limpieza"):
 
 df_inv = clean_inventario(df_inv_raw)
 df_tx  = clean_transacciones(df_tx_raw)
-df_fb  = clean_feedback(df_fb_raw))
+df_fb  = clean_feedback(df_fb_raw)
 
     # ---------------- Auditoría ----------------
     st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
