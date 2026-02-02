@@ -492,22 +492,23 @@ with tab3:
 
 
 with tab4:
-    st.subheader("🤖 Insights Generados por IA")
+    st.subheader("🤖 Insights Ejecutivos Generados por IA")
 
-    pregunta = st.text_area(
-        "¿Qué deseas analizar con IA?",
-        placeholder="Ej: ¿Qué bodegas representan mayor riesgo operativo?"
+    st.markdown(
+        """
+        Este módulo genera automáticamente un análisis ejecutivo
+        basado **exclusivamente en los datos filtrados** del dashboard.
+        """
     )
 
-    if st.button("🧠 Analizar con IA"):
+    if st.button("🧠 Generar Insights Ejecutivos"):
         if "groq_api_key" not in st.session_state:
-            st.warning("⚠️ Ingresa primero tu API Key de Groq en la barra lateral.")
+            st.warning("⚠️ Ingresa tu API Key de Groq en la barra lateral.")
             st.stop()
 
-        with st.spinner("Analizando datos filtrados con IA..."):
+        with st.spinner("Analizando operación con IA..."):
             resultado = generar_insights_ia(
                 df_f,
-                pregunta,
                 st.session_state["groq_api_key"]
             )
 
