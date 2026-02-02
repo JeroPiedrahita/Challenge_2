@@ -48,23 +48,30 @@ if st.sidebar.button("🚀 Ejecutar Auditoría"):
         st.sidebar.error("Error: Se requieren los 3 archivos.")
     else:
         try:
-            # CARGA CON DETECCIÓN AUTOMÁTICA (Resuelve el KeyError)
-            # engine='python' y sep=None detectan si es , o ;
-            # encoding='utf-8-sig' quita caracteres invisibles al inicio (BOM)
+             # 1. CARGA DE ALTA COMPATIBILIDAD
+            # Usamos encoding 'utf-8-sig' para limpiar el BOM invisible de Excel
             df_inv = pd.read_csv(inv_file, sep=None, engine='python', encoding='utf-8-sig')
             df_tx = pd.read_csv(tx_file, sep=None, engine='python', encoding='utf-8-sig')
             df_fb = pd.read_csv(fb_file, sep=None, engine='python', encoding='utf-8-sig')
 
-            # LIMPIEZA DE CABECERAS (Elimina espacios y basura en los nombres de columnas)
+            # 2. LIMPIEZA FORZOSA DE CABECERAS
             for df in [df_inv, df_tx, df_fb]:
                 df.columns = df.columns.str.strip()
 
+            # 3. SOLUCIÓN AL KEYERROR POR POSICIÓN (Red de seguridad)
+            # Si no encuentra el nombre, renombra la columna 0 como SKU_ID
+            if 'SKU_ID' not in df_inv.columns:
+                df_inv.rename(columns={df_inv.columns[0]: 'SKU_ID'}, inplace=True)
+            
+            if 'SKU_ID' not in df_tx.columns:
+                df_tx.rename(columns={df_tx.columns[0]: 'SKU_ID'}, inplace=True)
+
             # --- PROCESAMIENTO INVENTARIO ---
             df_inv["SKU_ID"] = df_inv["SKU_ID"].astype(str).str.strip().str.upper()
-            df_inv["Categoria"] = df_inv["Categoria"].apply(norm_text).str.title()
-            df_inv["Costo_Unitario_USD"] = pd.to_numeric(df_inv["Costo_Unitario_USD"], errors="coerce")
+            df_inv["Categoria"] = df_inv["Categoria"].astype(str).apply(norm_text).str.title()
             
-            # Tratamiento de Outlier de $850k (Filtro por percentil 95%)
+            # Limpieza de Costos (Outliers)
+            df_inv["Costo_Unitario_USD"] = pd.to_numeric(df_inv["Costo_Unitario_USD"], errors="coerce")
             q_high = df_inv["Costo_Unitario_USD"].quantile(0.95)
             df_inv["Costo_Unitario_Limpio"] = df_inv["Costo_Unitario_USD"].mask(
                 df_inv["Costo_Unitario_USD"] > q_high, 
@@ -74,23 +81,24 @@ if st.sidebar.button("🚀 Ejecutar Auditoría"):
 
             # --- PROCESAMIENTO TRANSACCIONES ---
             df_tx["SKU_ID"] = df_tx["SKU_ID"].astype(str).str.strip().str.upper()
-            for c in ["Cantidad_Vendida", "Precio_Venta_Final", "Costo_Envio", "Tiempo_Entrega_Real"]:
-                df_tx[c] = pd.to_numeric(df_tx[c], errors="coerce")
+            if 'Transaccion_ID' not in df_tx.columns:
+                df_tx.rename(columns={df_tx.columns[1]: 'Transaccion_ID'}, inplace=True)
+            
+            cols_tx = ["Cantidad_Vendida", "Precio_Venta_Final", "Costo_Envio", "Tiempo_Entrega_Real"]
+            for c in cols_tx:
+                if c in df_tx.columns:
+                    df_tx[c] = pd.to_numeric(df_tx[c], errors="coerce")
+            
             df_tx = df_tx.drop_duplicates("Transaccion_ID")
 
-            # --- PROCESAMIENTO FEEDBACK ---
-            df_fb["Satisfaccion_NPS"] = pd.to_numeric(df_fb["Satisfaccion_NPS"], errors="coerce")
-            map_sn = {"si":"Sí", "1":"Sí", "no":"No", "0":"No"}
-            df_fb["Ticket_Soporte_Abierto"] = df_fb["Ticket_Soporte_Abierto"].astype(str).str.lower().map(map_sn).fillna("No")
-
-            # PERSISTENCIA
+            # PERSISTENCIA EN SESSION STATE
             st.session_state["data"] = {"inv": df_inv, "tx": df_tx, "fb": df_fb}
             st.session_state["health"] = {
                 "inv": health_score_engine(df_inv, df_inv),
                 "tx": health_score_engine(df_tx, df_tx),
                 "fb": health_score_engine(df_fb, df_fb)
             }
-            st.sidebar.success("✅ Auditoría completada")
+            st.sidebar.success("✅ Datos cargados correctamente")
 
         except Exception as e:
             st.error(f"Error crítico en lectura: {e}")
