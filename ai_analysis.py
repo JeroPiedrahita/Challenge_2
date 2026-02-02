@@ -1,6 +1,9 @@
 import streamlit as st
 from groq import Groq
 
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+print("API Key OK")
+
 
 def generar_insights_ia(df_f, pregunta):
 
