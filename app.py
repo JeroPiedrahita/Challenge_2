@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 # Importamos las funciones de tu módulo de procesamiento
-from Data_prossesing import clean_inventario, clean_transacciones, clean_feedback, merge_datasets
+from data_processing import clean_inventario, clean_transacciones, clean_feedback, merge_datasets
 
 # 1. CONFIGURACIÓN E IDENTIDAD
 st.set_page_config(page_title="TechLogistics Global Analytics", layout="wide", page_icon="🚀")
