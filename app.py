@@ -1,144 +1,221 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
-# Importamos las funciones de tu módulo de procesamiento
-from data_processing import clean_inventario, clean_transacciones, clean_feedback, merge_datasets
+import matplotlib.pyplot as plt
+import unicodedata
 
-# 1. CONFIGURACIÓN E IDENTIDAD
-st.set_page_config(page_title="TechLogistics Global Analytics", layout="wide", page_icon="🚀")
+# --------------------------------------------------
+# Configuración general
+# --------------------------------------------------
+st.set_page_config(
+    page_title="EDA Operacional – TechLog",
+    layout="wide"
+)
 
-# Colores Corporativos
-PRIMARY_BLUE = "#1E3A8A"
-ACCENT_BLUE = "#3B82F6"
-SUCCESS_GREEN = "#10B981"
+st.title("📦 EDA Operacional – TechLog")
+st.markdown(
+    "Auditoría de datos, integración y análisis de riesgo para una operación *Tech + Logistics*."
+)
 
-st.markdown(f"""
-    <style>
-    .main {{ background-color: #f8fafc; }}
-    .stMetric {{ background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
-    </style>
-    """, unsafe_allow_html=True)
+# --------------------------------------------------
+# Funciones auxiliares
+# --------------------------------------------------
+def norm(x):
+    if pd.isna(x):
+        return x
+    x = str(x).strip().lower()
+    return unicodedata.normalize("NFKD", x).encode("ascii","ignore").decode("utf-8")
 
-# 2. MOTOR DE CARGA Y NORMALIZACIÓN (Solución al KeyError)
-@st.cache_data
-def load_and_standardize(inv_f, tx_f, fb_f):
-    # Carga inicial
-    inv_r = pd.read_csv(inv_f)
-    tx_r = pd.read_csv(tx_f)
-    fb_r = pd.read_csv(fb_f)
-    
-    # MAPEADOR: Renombramos columnas para que coincidan con lo que espera Data_prossesing.py
-    # Esto soluciona el error 'Tiempo_Entrega'
-    tx_r = tx_r.rename(columns={'Tiempo_Entrega_Real': 'Tiempo_Entrega'})
-    fb_r = fb_r.rename(columns={'Ticket_Soporte_Abierto': 'Ticket_Soporte'})
-    
-    # Ejecutamos tu lógica de Data_prossesing.py
-    df_inv, log_inv = clean_inventario(inv_r)
-    df_tx, log_tx = clean_transacciones(tx_r)
-    df_fb, log_fb = clean_feedback(fb_r)
-    
-    # Unión final
-    df_master, metrics = merge_datasets(df_inv, df_tx, df_fb)
-    return df_master, metrics
+def nps_grupo(x):
+    if pd.isna(x): return np.nan
+    if x >= 9: return "Promotor"
+    if x >= 7: return "Pasivo"
+    return "Detractor"
 
-# --- SIDEBAR ---
-st.sidebar.title("📥 Panel de Control")
-inv_file = st.sidebar.file_uploader("Hoja: Inventario", type="csv")
-tx_file = st.sidebar.file_uploader("Hoja: Transacciones", type="csv")
-fb_file = st.sidebar.file_uploader("Hoja: Feedback", type="csv")
+def health_report(df_raw, df_clean):
+    pct_nulos = df_clean.isna().mean() * 100
+    duplicados = len(df_raw) - len(df_raw.drop_duplicates())
 
-if not (inv_file and tx_file and fb_file):
-    st.warning("⚠️ Cargue los 3 archivos CSV para activar el motor de BI.")
+    num = df_clean.select_dtypes(include=np.number)
+    outliers = ((num - num.mean()).abs() > 3 * num.std()).sum().sum()
+
+    health = max(
+        0,
+        100 - (
+            pct_nulos.mean() * 0.4 +
+            (duplicados / len(df_raw)) * 100 * 0.2 +
+            (outliers / max(1, num.size)) * 100 * 0.4
+        )
+    )
+
+    return {
+        "health_score": round(health, 1),
+        "pct_nulos": pct_nulos,
+        "duplicados": duplicados,
+        "outliers": int(outliers)
+    }
+
+# --------------------------------------------------
+# Sidebar – Ingesta
+# --------------------------------------------------
+st.sidebar.title("Carga de Datos")
+
+inv_file = st.sidebar.file_uploader("Inventario", type="csv")
+tx_file  = st.sidebar.file_uploader("Transacciones", type="csv")
+fb_file  = st.sidebar.file_uploader("Feedback Clientes", type="csv")
+
+if st.sidebar.button("🧹 Ejecutar Limpieza"):
+
+    if not all([inv_file, tx_file, fb_file]):
+        st.error("Debes cargar los tres archivos.")
+        st.stop()
+
+    # ---------------- Ingesta ----------------
+    df_inv_raw = pd.read_csv(inv_file, dtype=str)
+    df_tx_raw  = pd.read_csv(tx_file, dtype=str)
+    df_fb_raw  = pd.read_csv(fb_file, dtype=str)
+
+    # ---------------- Inventario ----------------
+    df_inv = df_inv_raw.copy()
+    df_inv["SKU_ID"] = df_inv["SKU_ID"].str.strip().str.upper()
+    df_inv["Categoria"] = df_inv["Categoria"].apply(norm)
+    df_inv["Bodega_Origen"] = df_inv["Bodega_Origen"].apply(norm)
+
+    for c in ["Stock_Actual","Costo_Unitario_USD","Lead_Time_Dias","Punto_Reorden"]:
+        df_inv[c] = pd.to_numeric(df_inv[c], errors="coerce")
+
+    df_inv["Ultima_Revision"] = pd.to_datetime(df_inv["Ultima_Revision"], errors="coerce")
+    df_inv["stock_negativo"] = df_inv["Stock_Actual"] < 0
+
+    df_inv["Costo_Unitario_USD"] = df_inv["Costo_Unitario_USD"].replace(0, np.nan)
+    df_inv["Costo_Unitario_Limpio"] = (
+        df_inv["Costo_Unitario_USD"]
+        .fillna(df_inv.groupby("Categoria")["Costo_Unitario_USD"].transform("median"))
+        .fillna(df_inv["Costo_Unitario_USD"].median())
+    )
+
+    df_inv["Lead_Time_Limpio"] = (
+        df_inv["Lead_Time_Dias"]
+        .replace(0, np.nan)
+        .fillna(df_inv.groupby("Bodega_Origen")["Lead_Time_Dias"].transform("median"))
+        .fillna(df_inv["Lead_Time_Dias"].median())
+    )
+
+    df_inv = df_inv.sort_values("Ultima_Revision").drop_duplicates("SKU_ID", keep="last")
+
+    # ---------------- Transacciones ----------------
+    df_tx = df_tx_raw.copy()
+    df_tx["SKU_ID"] = df_tx["SKU_ID"].str.strip().str.upper()
+    df_tx["Ciudad_Destino"] = df_tx["Ciudad_Destino"].apply(norm)
+
+    for c in ["Cantidad_Vendida","Precio_Venta_Final","Costo_Envio","Tiempo_Entrega_Real"]:
+        df_tx[c] = pd.to_numeric(df_tx[c], errors="coerce")
+
+    df_tx["Fecha_Venta"] = pd.to_datetime(df_tx["Fecha_Venta"], errors="coerce")
+    df_tx["Tiempo_Entrega_Limpio"] = df_tx["Tiempo_Entrega_Real"].clip(0,180)
+
+    ciudades = {"med":"Medellín","medellin":"Medellín","bog":"Bogotá","bogota":"Bogotá"}
+    df_tx["Ciudad_Destino_Limpia"] = df_tx["Ciudad_Destino"].map(ciudades).fillna(df_tx["Ciudad_Destino"].str.title())
+
+    # ---------------- Feedback ----------------
+    df_fb = df_fb_raw.drop_duplicates().copy()
+    df_fb["Edad_Cliente"] = pd.to_numeric(df_fb["Edad_Cliente"], errors="coerce")
+    df_fb.loc[(df_fb["Edad_Cliente"] < 0) | (df_fb["Edad_Cliente"] > 100), "Edad_Cliente"] = np.nan
+
+    df_fb["Rating_Producto"] = pd.to_numeric(df_fb["Rating_Producto"], errors="coerce")
+    df_fb.loc[(df_fb["Rating_Producto"] < 1) | (df_fb["Rating_Producto"] > 5), "Rating_Producto"] = np.nan
+    df_fb["Rating_Producto"] = df_fb["Rating_Producto"].fillna(df_fb["Rating_Producto"].median())
+
+    map_sn = {"si":"Sí","sí":"Sí","yes":"Sí","1":"Sí","no":"No","0":"No"}
+    df_fb["Ticket_Soporte_Abierto"] = df_fb["Ticket_Soporte_Abierto"].str.lower().str.strip().map(map_sn)
+    df_fb["Recomienda_Marca"] = df_fb["Recomienda_Marca"].str.lower().str.strip().map(map_sn)
+
+    df_fb["Satisfaccion_NPS"] = pd.to_numeric(df_fb["Satisfaccion_NPS"], errors="coerce")
+    df_fb["Comentario_Texto"] = df_fb["Comentario_Texto"].replace("---", np.nan)
+    df_fb["NPS_Grupo"] = df_fb["Satisfaccion_NPS"].apply(nps_grupo)
+
+    # ---------------- Auditoría ----------------
+    st.session_state["rep_inv"] = health_report(df_inv_raw, df_inv)
+    st.session_state["rep_tx"]  = health_report(df_tx_raw, df_tx)
+    st.session_state["rep_fb"]  = health_report(df_fb_raw, df_fb)
+
+    st.session_state["df_inv"] = df_inv
+    st.session_state["df_tx"]  = df_tx
+    st.session_state["df_fb"]  = df_fb
+
+# --------------------------------------------------
+# Validación
+# --------------------------------------------------
+if "df_inv" not in st.session_state:
+    st.info("Carga los archivos y ejecuta la limpieza.")
     st.stop()
 
-# Procesamiento
-df, metrics = load_and_standardize(inv_file, tx_file, fb_file)
+df_inv = st.session_state["df_inv"]
+df_tx  = st.session_state["df_tx"]
+df_fb  = st.session_state["df_fb"]
 
-# Filtros Dinámicos
-with st.sidebar:
-    st.divider()
-    cat_filter = st.multiselect("Filtrar por Categoría", df["Categoria"].unique(), default=df["Categoria"].unique())
-    bodega_filter = st.multiselect("Filtrar por Bodega", df["Bodega_Origen"].unique(), default=df["Bodega_Origen"].unique())
+# --------------------------------------------------
+# Auditoría visual
+# --------------------------------------------------
+st.subheader("Auditoría de Calidad")
 
-df_filt = df[(df["Categoria"].isin(cat_filter)) & (df["Bodega_Origen"].isin(bodega_filter))]
+col1, col2, col3 = st.columns(3)
+col1.metric("Health Inventario", st.session_state["rep_inv"]["health_score"])
+col2.metric("Health Transacciones", st.session_state["rep_tx"]["health_score"])
+col3.metric("Health Feedback", st.session_state["rep_fb"]["health_score"])
 
-# 3. DASHBOARD EJECUTIVO
-st.title("🚀 TechLogistics Executive Intelligence")
-st.subheader("Análisis Integral de Supply Chain y Satisfacción")
+# --------------------------------------------------
+# Integración
+# --------------------------------------------------
+df_master = (
+    df_tx
+    .merge(df_inv, on="SKU_ID", how="left", indicator=True)
+    .merge(df_fb, on="Transaccion_ID", how="left")
+)
 
-# KPIs de Alto Nivel
-k1, k2, k3, k4 = st.columns(4)
-total_rev = df_filt["Precio_Venta_Final"].sum()
-avg_margin = df_filt["Margen_Pct"].mean()
-nps_score = df_filt["Satisfaccion_NPS"].mean()
+df_master["sku_fantasma"] = df_master["_merge"] == "left_only"
+df_master["Ingreso"] = df_master["Cantidad_Vendida"] * df_master["Precio_Venta_Final"]
+df_master["Costo_Total"] = df_master["Cantidad_Vendida"] * df_master["Costo_Unitario_Limpio"] + df_master["Costo_Envio"]
+df_master["Margen_Utilidad"] = df_master["Ingreso"] - df_master["Costo_Total"]
+df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Lead_Time_Limpio"]
 
-k1.metric("Ingresos Totales", f"${total_rev:,.0f}", "USD")
-k2.metric("Margen Neto Promedio", f"{avg_margin:.1f}%", f"{df_filt['Margen_USD'].sum():,.0f} Total")
-k3.metric("NPS (Customer Health)", f"{nps_score:.1f}", "pts")
-k4.metric("Ventas Fantasma", metrics['phantom_sales'], "SKUs no registrados", delta_color="inverse")
+# --------------------------------------------------
+# Storytelling visual
+# --------------------------------------------------
+st.subheader("Rentabilidad Operativa")
 
-st.divider()
+# 🔹 Mejora visual del margen (sin alterar datos)
+margen = df_master["Margen_Utilidad"].dropna()
+p5, p95 = margen.quantile([0.05, 0.95])
+margen_vis = margen.clip(p5, p95)
 
-# --- LAS 5 GRÁFICAS ESTRATÉGICAS ---
+fig, ax = plt.subplots()
+ax.hist(margen_vis, bins=40)
+ax.axvline(0, linestyle="--")
+ax.set_xlabel("Margen de Utilidad (USD)")
+ax.set_ylabel("Frecuencia")
+ax.set_title("Distribución del Margen de Utilidad (recorte visual 5%–95%)")
+st.pyplot(fig)
 
-# FILA 1
-c1, c2 = st.columns([6, 4])
+st.subheader("Impacto Logístico en Satisfacción")
 
-with c1:
-    # 1. Gráfica Financiera: Margen por Categoría y Bodega
-    st.markdown("### 💰 Estructura de Rentabilidad")
-    fig1 = px.bar(df_filt, x="Categoria", y="Margen_USD", color="Bodega_Origen",
-                  barmode="group", text_auto='.2s', template="plotly_white",
-                  color_discrete_sequence=px.colors.qualitative.Prism)
-    st.plotly_chart(fig1, use_container_width=True)
+fig, ax = plt.subplots()
+ax.scatter(df_master["Tiempo_Entrega_Limpio"], df_master["Satisfaccion_NPS"], alpha=0.3)
+ax.set_xlabel("Tiempo de Entrega (días)")
+ax.set_ylabel("NPS")
+st.pyplot(fig)
 
-with c2:
-    # 2. Gráfica de Correlación: Logística vs Satisfacción
-    st.markdown("### ⏱️ Impacto de Entrega en NPS")
-    fig2 = px.scatter(df_filt, x="Tiempo_Entrega", y="Satisfaccion_NPS", 
-                      size="Cantidad_Vendida", color="Categoria",
-                      trendline="ols", template="plotly_white")
-    st.plotly_chart(fig2, use_container_width=True)
+st.subheader("Riesgo Operativo por Bodega")
 
-# FILA 2
-c3, c4 = st.columns(2)
+riesgo = (
+    df_master
+    .assign(ticket_bin=df_master["Ticket_Soporte_Abierto"] == "Sí")
+    .groupby("Bodega_Origen")["ticket_bin"]
+    .mean()
+    .sort_values(ascending=False)
+)
 
-with c3:
-    # 3. Gráfica de Inventario: Mapa de Calor de Stock
-    st.markdown("### 📦 Distribución de Inventario Crítico")
-    fig3 = px.treemap(df_filt, path=[px.Constant("Global"), 'Bodega_Origen', 'Categoria'], 
-                      values='Stock_Actual', color='Dias_Sin_Revision',
-                      color_continuous_scale='RdYlGn_r', 
-                      title="Volumen de Stock (Color: Días desde última revisión)")
-    st.plotly_chart(fig3, use_container_width=True)
-
-with c4:
-    # 4. Gráfica de Feedback: Calidad por Categoría
-    st.markdown("### ⭐ Auditoría de Calidad (Rating)")
-    fig4 = px.box(df_filt, x="Categoria", y="Rating_Producto", color="Ticket_Soporte",
-                  notched=True, title="Distribución de Ratings y Soporte Abierto")
-    st.plotly_chart(fig4, use_container_width=True)
-
-# FILA 3 (Ancho Completo)
-# 5. Tendencia Temporal: Desempeño Diario
-st.markdown("### 📈 Evolución Histórica de Ventas")
-df_filt['Fecha_Venta'] = pd.to_datetime(df_filt['Fecha_Venta'])
-resumen_diario = df_filt.groupby('Fecha_Venta')[['Precio_Venta_Final', 'Margen_USD']].sum().reset_index()
-
-fig5 = go.Figure()
-fig5.add_trace(go.Scatter(x=resumen_diario['Fecha_Venta'], y=resumen_diario['Precio_Venta_Final'],
-                         mode='lines', name='Ingresos Brutos', line=dict(color=ACCENT_BLUE, width=3)))
-fig5.add_trace(go.Scatter(x=resumen_diario['Fecha_Venta'], y=resumen_diario['Margen_USD'],
-                         mode='lines', name='Margen Neto', fill='tozeroy', line=dict(color=SUCCESS_GREEN)))
-fig5.update_layout(template="plotly_white", hovermode="x unified")
-st.plotly_chart(fig5, use_container_width=True)
-
-# AUDITORÍA TÉCNICA
-with st.expander("🛠️ Detalles Técnicos de Integridad (Data Cleaning Log)"):
-    col_a, col_b = st.columns(2)
-    col_a.write("**Métricas de Salud del Dataset:**")
-    col_a.json(metrics)
-    if st.checkbox("Mostrar Tabla de Datos Normalizados"):
-        st.dataframe(df_filt.head(50))
+fig, ax = plt.subplots()
+riesgo.plot(kind="bar", ax=ax)
+ax.set_ylabel("Tasa de Tickets")
+st.pyplot(fig)
