@@ -239,14 +239,19 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True)
 
+# --- AQUÍ ESTÁ LA CORRECCIÓN ---
+# Calculamos la correlación de Pearson entre las dos variables seleccionadas
+# Usamos .dropna() para que no de error si hay valores nulos
+corr = df_f[x_var].corr(df_f[y_var])
 
 st.markdown(
     f"""
     **📌 Interpretación rápida**
 
     La correlación entre **{x_var_label}** y **{y_var_label}** es de  
-    **{corr:.2f}**, lo que sugiere una relación relevante.
+    **{corr:.2f}**, lo que sugiere una relación {"fuerte" if abs(corr) > 0.7 else "moderada" if abs(corr) > 0.3 else "débil"}.
 
     Esto permite analizar cómo las variables operativas
     influyen entre sí dentro del negocio.
