@@ -200,6 +200,10 @@ with tab1:
 
     resumen = resumen_limpieza(df_inv_raw, df_inv)
 
+    
+    # 👇 AGREGA ESTA LÍNEA TEMPORAL
+    st.write(resumen)
+
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric("Filas Originales", resumen["Filas originales"])
