@@ -51,17 +51,16 @@ Sigue estos pasos para ejecutar el proyecto localmente:
    ```bash
    git clone [https://github.com/JeroPiedrahita/Challenge_2.git](https://github.com/JeroPiedrahita/Challenge_2.git)
    cd Challenge_2
-Instalar dependencias:
 2. **Instalar dependencias:**
-
+```bash
 pip install -r requirements.txt
 
 3. **Ejecutar la App:**
 
-
+```bash
 streamlit run app.py
 
-🤖 **Uso de Inteligencia Artificial**
+##🤖 **Uso de Inteligencia Artificial**
 La aplicación integra el modelo llama-3.1-8b-instant a través de Groq.
 
 *Entrada: Resumen de KPIs operativos (Ingresos, Márgenes, Tasa de Tickets).
@@ -70,7 +69,7 @@ La aplicación integra el modelo llama-3.1-8b-instant a través de Groq.
 
 Nota: Se requiere una API Key de Groq para habilitar esta función en la pestaña de "Insights IA".
 
-🎓 **Créditos**
+##🎓 **Créditos**
 Estudiante: Marcela Londoño Leon-Jerónimo Piedrahita Franco
 
 Curso: Fundamentos en Ciencia de Datos (Maestría en Ingeniería)
@@ -78,5 +77,5 @@ Curso: Fundamentos en Ciencia de Datos (Maestría en Ingeniería)
 Institución: Universidad EAFIT
 
 Periodo: 2026-1
-
+##
 **Accede a la app en vivo aquí: https://challenge2.streamlit.app/**
