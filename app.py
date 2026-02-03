@@ -155,6 +155,7 @@ st.sidebar.header("🎛️ Filtros")
 fecha_min = df_master["Fecha_Venta"].min()
 fecha_max = df_master["Fecha_Venta"].max()
 
+
 rango_fechas = st.sidebar.date_input(
     "Rango de fechas",
     value=(fecha_min, fecha_max),
@@ -162,6 +163,11 @@ rango_fechas = st.sidebar.date_input(
     max_value=fecha_max
 )
 
+# --- Normalización segura del rango de fechas ---
+if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
+    fecha_inicio, fecha_fin = rango_fechas
+else:
+    fecha_inicio = fecha_fin = rango_fechas
 # Filtros básicos
 bodegas = st.sidebar.multiselect(
     "Bodega de Origen",
@@ -184,14 +190,10 @@ canales = st.sidebar.multiselect(
 refrescar = st.sidebar.button("🔄 Refrescar Análisis")
 
 # Aplicar filtros
-df_f = df_master[
-    (df_master["Bodega_Origen"].isin(bodegas)) &
-    (df_master["Fecha_Venta"].between(
-        pd.to_datetime(rango_fechas[0]),
-        pd.to_datetime(rango_fechas[1])
-    ))
-]
-
+(df_master["Fecha_Venta"].between(
+    pd.to_datetime(fecha_inicio),
+    pd.to_datetime(fecha_fin)
+))
 
 
 tab1, tab2, tab3, tab4 = st.tabs(
