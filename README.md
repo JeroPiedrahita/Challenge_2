@@ -52,13 +52,13 @@ Sigue estos pasos para ejecutar el proyecto localmente:
    git clone [https://github.com/JeroPiedrahita/Challenge_2.git](https://github.com/JeroPiedrahita/Challenge_2.git)
    cd Challenge_2
 2. **Instalar dependencias:**
-```bash
-pip install -r requirements.txt
+   ```bash
+   pip install -r requirements.txt
 
 3. **Ejecutar la App:**
 
-```bash
-streamlit run app.py
+   ```bash
+   streamlit run app.py
 
 ##🤖 **Uso de Inteligencia Artificial**
 La aplicación integra el modelo llama-3.1-8b-instant a través de Groq.
