@@ -161,6 +161,7 @@ fecha_inicio, fecha_fin = st.date_input(
         df_master["Fecha_Venta"].min().date(),
         df_master["Fecha_Venta"].max().date()
     )
+)
 fecha_inicio = pd.to_datetime(fecha_inicio)
 fecha_fin = pd.to_datetime(fecha_fin)
 
