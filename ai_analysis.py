@@ -48,14 +48,14 @@ Resumen:
 {resumen}
 """
 
-    response = client.chat.completions.create(
-        model="llama3-8b-8192",
-        messages=[
-            {"role": "system", "content": "Eres un experto en análisis de negocio."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.4,
-        max_tokens=350
-    )
+response = client.chat.completions.create(
+    model="llama3-70b-8192",
+    messages=[
+        {"role": "system", "content": "Eres un experto en análisis de negocio."},
+        {"role": "user", "content": prompt}
+    ],
+    temperature=0.4,
+    max_tokens=350
+)
 
     return response.choices[0].message.content
