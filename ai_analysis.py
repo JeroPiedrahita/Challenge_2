@@ -48,21 +48,21 @@ Resumen:
 {resumen}
 """
 
-try:
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {"role": "system", "content": "Eres un experto en análisis de negocio."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.4,
-        max_tokens=350
-    )
+    try:
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": "Eres un experto en análisis de negocio."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+            max_tokens=350
+        )
 
-    return response.choices[0].message.content
+        return response.choices[0].message.content
 
-except Exception as e:
-    return (
-        "❌ Error al generar insights con IA.\n\n"
-        f"Detalle técnico: {e}"
-    )
+    except Exception as e:
+        return (
+            "❌ Error al generar insights con IA.\n\n"
+            f"Detalle técnico: {e}"
+        )
