@@ -503,11 +503,11 @@ with tab3:
 
 with tab4:
     st.subheader("🤖 Insights Generados por IA")
+    groq_key = st.session_state.get("groq_api_key")
+    if not groq_key:
+    st.warning("Ingresa la API Key en el panel lateral.")
+    st.stop()
 
-    groq_key = st.text_input(
-        "🔑 Ingresa tu API Key de Groq",
-        type="password"
-    )
 
     if st.button("🧠 Analizar con IA"):
         if not groq_key:
