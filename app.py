@@ -155,6 +155,13 @@ df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Le
 
 st.sidebar.header("🎛️ Filtros")
 
+# Asegurar tipo datetime
+df_master["Fecha_Venta"] = pd.to_datetime(
+    df_master["Fecha_Venta"],
+    errors="coerce"
+)
+
+# Selector de fechas
 fecha_inicio, fecha_fin = st.date_input(
     "📅 Rango de fechas",
     value=(
@@ -162,15 +169,20 @@ fecha_inicio, fecha_fin = st.date_input(
         df_master["Fecha_Venta"].max().date()
     )
 )
+
 fecha_inicio = pd.to_datetime(fecha_inicio)
 fecha_fin = pd.to_datetime(fecha_fin)
 
-df_filtrado = df_master[
-    df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin)
-]
+# Validación
 if fecha_inicio > fecha_fin:
     st.error("La fecha inicial no puede ser mayor a la final.")
     st.stop()
+
+# Filtro
+df_filtrado = df_master[
+    df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin)
+]
+
 
 # --- Normalización segura del rango de fechas ---
 if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
