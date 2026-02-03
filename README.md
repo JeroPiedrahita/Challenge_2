@@ -4,17 +4,17 @@ Este proyecto es un Sistema de Soporte a la Decisión (DSS) interactivo desarrol
 La solución utiliza Streamlit para la interfaz visual y IA Generativa (Llama-3.1-8b) para la generación de insights estratégicos de alto nivel.
 
 📑 Tabla de Contenido
-Descripción del Problema
+*Descripción del Problema
 
-Funcionalidades Clave
+*Funcionalidades Clave
 
-Arquitectura del Repositorio
+*Arquitectura del Repositorio
 
-Instalación y Configuración
+*Instalación y Configuración
 
-Uso de Inteligencia Artificial
+*Uso de Inteligencia Artificial
 
-Créditos
+*Créditos
 
 🔍 Descripción del Problema
 TechLogistics enfrenta una erosión en sus márgenes y una caída en la lealtad del cliente. Los datos crudos presentan desafíos técnicos críticos:
@@ -51,8 +51,8 @@ Para ejecutar este proyecto localmente:
 Clonar el repositorio:
 
 Bash
-git clone https://github.com/tu-usuario/nombre-del-repo.git
-cd nombre-del-repo
+git clone https://https://github.com/JeroPiedrahita/Challenge_2.git
+cd /Challenge_2
 Instalar dependencias:
 
 Bash
