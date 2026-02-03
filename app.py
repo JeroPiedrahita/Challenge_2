@@ -185,6 +185,11 @@ df_filtrado = df_master[
 
 
 # Filtros básicos
+
+if not bodegas:
+    st.warning("Selecciona al menos una bodega.")
+    st.stop()
+    
 bodegas = st.sidebar.multiselect(
     "Bodega de Origen",
     options=sorted(df_master["Bodega_Origen"].dropna().unique()),
@@ -207,12 +212,10 @@ canales = st.sidebar.multiselect(
 st.sidebar.button("🔄 Refrescar Análisis")
 
 # Aplicar filtros (df_f SIEMPRE existe)
+# Filtro maestro
 df_f = df_master[
     (df_master["Bodega_Origen"].isin(bodegas)) &
-    (df_master["Fecha_Venta"].between(
-        pd.to_datetime(fecha_inicio),
-        pd.to_datetime(fecha_fin)
-    ))
+    (df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin))
 ]
 
 
