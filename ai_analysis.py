@@ -52,7 +52,7 @@ Resumen:
 
     try:
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="Llama3",
 ,
             messages=[
                 {"role": "system", "content": "Eres un experto en análisis de negocio."},
