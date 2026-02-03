@@ -158,26 +158,16 @@ df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Le
 st.sidebar.header("🎛️ Filtros")
 
 # ---------------- Fechas ----------------
-# Eliminar filas con fechas nulas para evitar errores
-df_master = df_master.dropna(subset=["Fecha_Venta"])
-
 fecha_min = df_master["Fecha_Venta"].min().date()
 fecha_max = df_master["Fecha_Venta"].max().date()
 
-# Selector de rango de fechas
-fecha_sel = st.sidebar.date_input(
+# Slider para rango de fechas
+fecha_inicio, fecha_fin = st.sidebar.slider(
     "📅 Rango de fechas",
-    value=(fecha_min, fecha_max),  # Valor inicial: min y max
     min_value=fecha_min,
-    max_value=fecha_max
+    max_value=fecha_max,
+    value=(fecha_min, fecha_max)
 )
-
-# Asegurar que siempre tengamos fecha_inicio y fecha_fin
-if isinstance(fecha_sel, (tuple, list)):
-    fecha_inicio, fecha_fin = fecha_sel
-else:
-    # Si el usuario selecciona solo un día, usarlo como inicio y fin
-    fecha_inicio = fecha_fin = fecha_sel
 
 # Convertir a datetime para filtrar
 fecha_inicio = pd.to_datetime(fecha_inicio)
@@ -219,13 +209,9 @@ df_f = df_master[
     (df_master["Canal_Venta"].isin(canales))
 ]
 
-# ---------------- Debug opcional ----------------
+# Debug opcional
 st.sidebar.caption(f"Filas totales: {len(df_master)}")
 st.sidebar.caption(f"Filas filtradas: {len(df_f)}")
-
-# Mensaje amigable si se selecciona un solo día
-if fecha_inicio == fecha_fin:
-    st.sidebar.info(f"Mostrando datos del día {fecha_inicio.date()}")
 
 tab1, tab2, tab3, tab4 = st.tabs(
     ["🧪 Auditoría", "⚙️ Operaciones", "👥 Cliente", "🤖 Insights IA"]
