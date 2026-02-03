@@ -141,6 +141,11 @@ df_master = (
     .merge(df_inv, on="SKU_ID", how="left", indicator=True)
     .merge(df_fb, on="Transaccion_ID", how="left")
 )
+# 🔒 Asegurar tipo datetime para filtros
+df_master["Fecha_Venta"] = pd.to_datetime(
+    df_master["Fecha_Venta"],
+    errors="coerce"
+)
 
 df_master["sku_fantasma"] = df_master["_merge"] == "left_only"
 df_master["Ingreso"] = df_master["Cantidad_Vendida"] * df_master["Precio_Venta_Final"]
