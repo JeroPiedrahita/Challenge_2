@@ -511,11 +511,15 @@ with tab4:
 
     if st.button("🧠 Analizar con IA"):
         if not groq_key:
-            st.warning("Debes ingresar una API Key válida de Groq.")
+            st.warning("Debes ingresar una API Key válida.")
             st.stop()
 
         with st.spinner("Analizando datos filtrados..."):
             resultado = generar_insights_ia(df_f, groq_key)
+
+        st.markdown("### 📌 Insights Ejecutivos")
+        st.write(resultado)
+
 
         st.markdown("### 📌 Insights Ejecutivos")
         st.write(resultado)
