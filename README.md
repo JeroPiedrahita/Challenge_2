@@ -59,7 +59,7 @@ Sigue estos pasos para ejecutar el proyecto localmente:
 
    ```bash
    streamlit run app.py
-
+---
 ##🤖 **Uso de Inteligencia Artificial**
 La aplicación integra el modelo llama-3.1-8b-instant a través de Groq.
 
@@ -69,6 +69,7 @@ La aplicación integra el modelo llama-3.1-8b-instant a través de Groq.
 
 Nota: Se requiere una API Key de Groq para habilitar esta función en la pestaña de "Insights IA".
 
+---
 ##🎓 **Créditos**
 Estudiante: Marcela Londoño Leon-Jerónimo Piedrahita Franco
 
@@ -77,5 +78,7 @@ Curso: Fundamentos en Ciencia de Datos (Maestría en Ingeniería)
 Institución: Universidad EAFIT
 
 Periodo: 2026-1
+
+---
 ##
 **Accede a la app en vivo aquí: https://challenge2.streamlit.app/**
