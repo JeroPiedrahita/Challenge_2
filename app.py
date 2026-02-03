@@ -141,11 +141,9 @@ df_master = (
     .merge(df_inv, on="SKU_ID", how="left", indicator=True)
     .merge(df_fb, on="Transaccion_ID", how="left")
 )
-# 🔒 Asegurar tipo datetime para filtros
-df_master["Fecha_Venta"] = pd.to_datetime(
-    df_master["Fecha_Venta"],
-    errors="coerce"
-)
+# Convertir y limpiar fechas nulas
+df_master["Fecha_Venta"] = pd.to_datetime(df_master["Fecha_Venta"], errors="coerce")
+df_master = df_master.dropna(subset=["Fecha_Venta"])
 
 df_master["sku_fantasma"] = df_master["_merge"] == "left_only"
 df_master["Ingreso"] = df_master["Cantidad_Vendida"] * df_master["Precio_Venta_Final"]
@@ -153,43 +151,24 @@ df_master["Costo_Total"] = df_master["Cantidad_Vendida"] * df_master["Costo_Unit
 df_master["Margen_Utilidad"] = df_master["Ingreso"] - df_master["Costo_Total"]
 df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Lead_Time_Limpio"]
 
+
 st.sidebar.header("🎛️ Filtros")
 
-# Asegurar tipo datetime
-df_master["Fecha_Venta"] = pd.to_datetime(
-    df_master["Fecha_Venta"],
-    errors="coerce"
-)
+# ---- Fechas ----
+fecha_min = df_master["Fecha_Venta"].min().date()
+fecha_max = df_master["Fecha_Venta"].max().date()
 
-# Selector de fechas
-fecha_inicio, fecha_fin = st.date_input(
+fecha_inicio, fecha_fin = st.sidebar.date_input(
     "📅 Rango de fechas",
-    value=(
-        df_master["Fecha_Venta"].min().date(),
-        df_master["Fecha_Venta"].max().date()
-    )
+    value=(fecha_min, fecha_max),
+    min_value=fecha_min,
+    max_value=fecha_max
 )
 
 fecha_inicio = pd.to_datetime(fecha_inicio)
 fecha_fin = pd.to_datetime(fecha_fin)
 
-# Validación
-if fecha_inicio > fecha_fin:
-    st.error("La fecha inicial no puede ser mayor a la final.")
-    st.stop()
-
-# Filtro
-df_filtrado = df_master[
-    df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin)
-]
-
-
-# Filtros básicos
-
-if not bodegas:
-    st.warning("Selecciona al menos una bodega.")
-    st.stop()
-    
+# ---- Filtros categóricos ----
 bodegas = st.sidebar.multiselect(
     "Bodega de Origen",
     options=sorted(df_master["Bodega_Origen"].dropna().unique()),
@@ -208,6 +187,14 @@ canales = st.sidebar.multiselect(
     default=sorted(df_master["Canal_Venta"].dropna().unique())
 )
 
+# ---- Validaciones ----
+if fecha_inicio > fecha_fin:
+    st.error("La fecha inicial no puede ser mayor a la final.")
+    st.stop()
+
+if not bodegas:
+    st.warning("Selecciona al menos una bodega.")
+    st.stop()
 # Botón solo como trigger visual
 st.sidebar.button("🔄 Refrescar Análisis")
 
@@ -218,6 +205,15 @@ df_f = df_master[
     (df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin))
 ]
 
+df_f = df_master[
+    (df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin)) &
+    (df_master["Bodega_Origen"].isin(bodegas)) &
+    (df_master["Ciudad_Destino_Limpia"].isin(ciudades)) &
+    (df_master["Canal_Venta"].isin(canales))
+]
+
+st.sidebar.caption(f"Filas totales: {len(df_master)}")
+st.sidebar.caption(f"Filas filtradas: {len(df_f)}")
 
 tab1, tab2, tab3, tab4 = st.tabs(
     ["🧪 Auditoría", "⚙️ Operaciones", "👥 Cliente", "🤖 Insights IA"]
