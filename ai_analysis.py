@@ -34,20 +34,21 @@ def generar_insights_ia(df, api_key):
         )
     }
 
-    prompt = f"""
-Eres un analista senior de operaciones y logística.
-
-A partir del siguiente resumen operativo,
-genera EXACTAMENTE 3 insights claros,
-accionables y orientados a toma de decisiones
-para un gerente.
-
-No repitas los números.
-No uses lenguaje técnico.
-No menciones que eres una IA.
-
-Resumen:
+    user_prompt = f"""
+Analiza los siguientes KPIs operativos y financieros:
 {resumen}
+
+Tu objetivo es entregar un informe ejecutivo de alto nivel que contenga:
+
+1. **Diagnóstico de la Situación:** Identifica el problema oculto detrás de estos números. ¿Hay una fuga de margen? ¿Un problema de escalabilidad? ¿La eficiencia operativa está comprometiendo la satisfacción del cliente?
+2. **Análisis de Impacto:** Explica cómo el estado actual afecta la rentabilidad a largo plazo.
+3. **Plan de Acción Estratégico:** Propone 3 pasos concretos para mitigar los riesgos detectados.
+
+REGLAS:
+- No repitas los datos crudos del resumen.
+- Usa terminología de negocios (Churn, ROI, Eficiencia Operativa, LTV).
+- Sé incisivo: si los datos muestran una ineficiencia, señálala claramente.
+- Formato: Usa Markdown con negritas para enfatizar puntos clave.
 """
 
     try:
