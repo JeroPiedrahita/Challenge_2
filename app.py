@@ -152,23 +152,31 @@ df_master["Margen_Utilidad"] = df_master["Ingreso"] - df_master["Costo_Total"]
 df_master["Brecha_Entrega"] = df_master["Tiempo_Entrega_Limpio"] - df_master["Lead_Time_Limpio"]
 
 
+# --------------------------------------------------
+# Sidebar – Filtros interactivos
+# --------------------------------------------------
 st.sidebar.header("🎛️ Filtros")
 
-# ---- Fechas ----
+# ---------------- Fechas ----------------
+# Asegurarnos que no haya nulos antes de calcular min/max
+df_master = df_master.dropna(subset=["Fecha_Venta"])
+
 fecha_min = df_master["Fecha_Venta"].min().date()
 fecha_max = df_master["Fecha_Venta"].max().date()
 
+# Selector de rango de fechas
 fecha_inicio, fecha_fin = st.sidebar.date_input(
     "📅 Rango de fechas",
-    value=(fecha_min, fecha_max),
+    value=(fecha_min, fecha_max),  # Deben ser datetime.date
     min_value=fecha_min,
     max_value=fecha_max
 )
 
+# Convertir a datetime para filtrar
 fecha_inicio = pd.to_datetime(fecha_inicio)
 fecha_fin = pd.to_datetime(fecha_fin)
 
-# ---- Filtros categóricos ----
+# ---------------- Filtros categóricos ----------------
 bodegas = st.sidebar.multiselect(
     "Bodega de Origen",
     options=sorted(df_master["Bodega_Origen"].dropna().unique()),
@@ -187,7 +195,7 @@ canales = st.sidebar.multiselect(
     default=sorted(df_master["Canal_Venta"].dropna().unique())
 )
 
-# ---- Validaciones ----
+# ---------------- Validaciones ----------------
 if fecha_inicio > fecha_fin:
     st.error("La fecha inicial no puede ser mayor a la final.")
     st.stop()
@@ -195,16 +203,8 @@ if fecha_inicio > fecha_fin:
 if not bodegas:
     st.warning("Selecciona al menos una bodega.")
     st.stop()
-# Botón solo como trigger visual
-st.sidebar.button("🔄 Refrescar Análisis")
 
-# Aplicar filtros (df_f SIEMPRE existe)
-# Filtro maestro
-df_f = df_master[
-    (df_master["Bodega_Origen"].isin(bodegas)) &
-    (df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin))
-]
-
+# ---------------- Filtro maestro ----------------
 df_f = df_master[
     (df_master["Fecha_Venta"].between(fecha_inicio, fecha_fin)) &
     (df_master["Bodega_Origen"].isin(bodegas)) &
@@ -212,9 +212,9 @@ df_f = df_master[
     (df_master["Canal_Venta"].isin(canales))
 ]
 
+# ---------------- Debug opcional ----------------
 st.sidebar.caption(f"Filas totales: {len(df_master)}")
 st.sidebar.caption(f"Filas filtradas: {len(df_f)}")
-
 tab1, tab2, tab3, tab4 = st.tabs(
     ["🧪 Auditoría", "⚙️ Operaciones", "👥 Cliente", "🤖 Insights IA"]
 )
