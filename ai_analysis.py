@@ -1,23 +1,10 @@
-from groq import Groq
-import math
-
-
-def safe_number(x):
-    if x is None or (isinstance(x, float) and math.isnan(x)):
-        return 0
-    return round(float(x), 2)
-
-
 def generar_insights_ia(df, api_key):
-
     if df.empty:
-        return (
-            "⚠️ No hay datos suficientes con los filtros actuales.\n\n"
-            "Ajusta el rango de fechas o los filtros para generar insights."
-        )
+        return "⚠️ No hay datos suficientes..."
 
     client = Groq(api_key=api_key)
 
+    # Enriquecemos el resumen con métricas de contexto para el análisis
     resumen = {
         "filas_analizadas": int(len(df)),
         "ingresos_totales_usd": safe_number(df["Ingreso"].sum()),
@@ -26,15 +13,21 @@ def generar_insights_ia(df, api_key):
             (df["Margen_Utilidad"].sum() / df["Ingreso"].sum()) * 100
             if df["Ingreso"].sum() > 0 else 0
         ),
-        "tiempo_entrega_promedio_dias": safe_number(
-            df["Tiempo_Entrega_Limpio"].mean()
-        ),
-        "riesgo_tickets_pct": safe_number(
-            (df["Ticket_Soporte_Abierto"] == "Sí").mean() * 100
-        )
+        "tiempo_entrega_promedio_dias": safe_number(df["Tiempo_Entrega_Limpio"].mean()),
+        "riesgo_tickets_pct": safe_number((df["Ticket_Soporte_Abierto"] == "Sí").mean() * 100),
+        # Añadimos métricas de dispersión o extremos para que la IA vea "el problema"
+        "peor_tiempo_entrega": safe_number(df["Tiempo_Entrega_Limpio"].max()),
+        "ingreso_promedio_por_operacion": safe_number(df["Ingreso"].mean())
     }
 
-    prompt = f"""
+    # PROMPT ESTRATÉGICO
+    system_prompt = (
+        "Eres un Senior Business Strategy & Data Scientist con 15 años de experiencia. "
+        "Tu enfoque no es descriptivo (decir qué pasó), sino diagnóstico (por qué pasó) "
+        "y prescriptivo (qué debemos hacer). Tienes un tono ejecutivo, directo y crítico."
+    )
+
+    user_prompt = f"""
 Analiza los siguientes KPIs operativos y financieros:
 {resumen}
 
@@ -53,21 +46,14 @@ REGLAS:
 
     try:
         response = client.chat.completions.create(
-           model="llama-3.1-8b-instant"
-
-,
+            model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres un experto en análisis de negocio."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
-            temperature=0.4,
-            max_tokens=350
+            temperature=0.3, # Bajamos la temperatura para mayor consistencia analítica
+            max_tokens=600   # Aumentamos para un análisis más exhaustivo
         )
-
         return response.choices[0].message.content
-
     except Exception as e:
-        return (
-            "❌ Error al generar insights con IA.\n\n"
-            f"Detalle técnico: {e}"
-        )
+        return f"❌ Error al generar insights: {e}"
