@@ -1,10 +1,12 @@
 from groq import Groq
 import math
 
+
 def safe_number(x):
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return 0
     return round(float(x), 2)
+
 
 def generar_insights_ia(df, api_key):
 
@@ -33,36 +35,36 @@ def generar_insights_ia(df, api_key):
     }
 
     prompt = f"""
-    Eres un analista senior de operaciones y logística.
-    
-    A partir del siguiente resumen operativo,
-    genera EXACTAMENTE 3 insights claros,
-    accionables y orientados a toma de decisiones
-    para un gerente.
-    
-    No repitas los números.
-    No uses lenguaje técnico.
-    No menciones que eres una IA.
-    
-    Resumen:
-    {resumen}
-    """
-    
-        try:
-            response = client.chat.completions.create(
-                model="llama3-70b-8192",
-                messages=[
-                    {"role": "system", "content": "Eres un experto en análisis de negocio."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.4,
-                max_tokens=350
-            )
-    
-            return response.choices[0].message.content
-    
-        except Exception as e:
-            return (
-                "❌ Error al generar insights con IA.\n\n"
-                f"Detalle técnico: {e}"
-            )
+Eres un analista senior de operaciones y logística.
+
+A partir del siguiente resumen operativo,
+genera EXACTAMENTE 3 insights claros,
+accionables y orientados a toma de decisiones
+para un gerente.
+
+No repitas los números.
+No uses lenguaje técnico.
+No menciones que eres una IA.
+
+Resumen:
+{resumen}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": "Eres un experto en análisis de negocio."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+            max_tokens=350
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return (
+            "❌ Error al generar insights con IA.\n\n"
+            f"Detalle técnico: {e}"
+        )
