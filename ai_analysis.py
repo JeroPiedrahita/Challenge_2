@@ -52,7 +52,8 @@ Resumen:
 
     try:
         response = client.chat.completions.create(
-            model="Llama3"
+           model="llama-3.1-8b-instant"
+
 ,
             messages=[
                 {"role": "system", "content": "Eres un experto en análisis de negocio."},
