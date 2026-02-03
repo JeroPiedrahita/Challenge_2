@@ -34,7 +34,7 @@ def generar_insights_ia(df, api_key):
         )
     }
 
-    user_prompt = f"""
+    prompt = f"""
 Analiza los siguientes KPIs operativos y financieros:
 {resumen}
 
