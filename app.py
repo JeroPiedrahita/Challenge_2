@@ -191,13 +191,17 @@ canales = st.sidebar.multiselect(
     default=sorted(df_master["Canal_Venta"].dropna().unique())
 )
 
-refrescar = st.sidebar.button("🔄 Refrescar Análisis")
+# Botón solo como trigger visual
+st.sidebar.button("🔄 Refrescar Análisis")
 
-# Aplicar filtros
-(df_master["Fecha_Venta"].between(
-    pd.to_datetime(fecha_inicio),
-    pd.to_datetime(fecha_fin)
-))
+# Aplicar filtros (df_f SIEMPRE existe)
+df_f = df_master[
+    (df_master["Bodega_Origen"].isin(bodegas)) &
+    (df_master["Fecha_Venta"].between(
+        pd.to_datetime(fecha_inicio),
+        pd.to_datetime(fecha_fin)
+    ))
+]
 
 
 tab1, tab2, tab3, tab4 = st.tabs(
