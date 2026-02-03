@@ -503,25 +503,19 @@ with tab3:
 
 with tab4:
     st.subheader("🤖 Insights Generados por IA")
-    groq_key = st.session_state.get("groq_api_key")
-    if not groq_key:
-    st.warning("Ingresa la API Key en el panel lateral.")
-    st.stop()
 
+    groq_key = st.session_state.get("groq_api_key")
+
+    if not groq_key:
+        st.warning("Ingresa la API Key en el panel lateral.")
+        st.stop()
 
     if st.button("🧠 Analizar con IA"):
-        if not groq_key:
-            st.warning("Debes ingresar una API Key válida.")
-            st.stop()
-
         with st.spinner("Analizando datos filtrados..."):
             resultado = generar_insights_ia(df_f, groq_key)
 
         st.markdown("### 📌 Insights Ejecutivos")
         st.write(resultado)
 
-
-        st.markdown("### 📌 Insights Ejecutivos")
-        st.write(resultado)
 
 
