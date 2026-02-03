@@ -184,11 +184,6 @@ df_filtrado = df_master[
 ]
 
 
-# --- Normalización segura del rango de fechas ---
-if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
-    fecha_inicio, fecha_fin = rango_fechas
-else:
-    fecha_inicio = fecha_fin = rango_fechas
 # Filtros básicos
 bodegas = st.sidebar.multiselect(
     "Bodega de Origen",
